@@ -1,0 +1,11 @@
+#!/bin/bash
+set -eu
+PADBRIDGE_DIR=$(cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)
+export PYTHONPATH="$PADBRIDGE_DIR:$PADBRIDGE_DIR/vendor/opendisplay-x11:$PADBRIDGE_DIR/runtime/usr/lib/python3/dist-packages${PYTHONPATH:+:$PYTHONPATH}"
+export LD_LIBRARY_PATH="$PADBRIDGE_DIR/runtime/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export GST_PLUGIN_PATH="$PADBRIDGE_DIR/gst-plugins${GST_PLUGIN_PATH:+:$GST_PLUGIN_PATH}"
+PADBRIDGE_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/padbridge"
+mkdir -p -- "$PADBRIDGE_CACHE"
+export GST_REGISTRY="$PADBRIDGE_CACHE/gst-registry.bin"
+export GI_TYPELIB_PATH="$PADBRIDGE_DIR/runtime/usr/lib/x86_64-linux-gnu/girepository-1.0${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}"
+exec /usr/bin/python3 "$PADBRIDGE_DIR/app.py" "$@"

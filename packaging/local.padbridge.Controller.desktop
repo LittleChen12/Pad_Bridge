@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=PadBridge
+Comment=Use an iPad as an extended or mirrored display
+Comment[zh_CN]=通过 USB 或 Wi-Fi 扩展或镜像电脑屏幕到 iPad
+Exec=padbridge ui
+Icon=padbridge
+Terminal=false
+Categories=Utility;
+Keywords=iPad;Display;Mirror;USB;WiFi;
+StartupNotify=true
+StartupWMClass=padbridge

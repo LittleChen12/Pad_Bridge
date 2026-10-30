@@ -1,0 +1,69 @@
+diff --git a/odx11/daemon.py b/odx11/daemon.py
+index e3c50ae..cd320a6 100644
+--- a/odx11/daemon.py
++++ b/odx11/daemon.py
+@@ -155,9 +155,19 @@ class Session:
+         self._fps = fps
+         if self.limits.max_fps:
+             fps = min(fps, int(self.limits.max_fps))
++        # PadBridge mirror mode can scale the video independently of the source.
++        stream_size = getattr(self.display, "stream_size", None)
++        video_w, video_h = stream_size(geom, fps) if stream_size else (geom.w, geom.h)
+         if self.limits.max_pps:
+-            fps = max(1, min(fps, int(self.limits.max_pps // (geom.w * geom.h))))
++            fps = max(1, min(fps, int(self.limits.max_pps // (video_w * video_h))))
+         self.pipeline = self.make_pipeline(geom, self._send_au, lambda m: self._pipeline_error(m, gen), fps=fps)
++        if hasattr(self.pipeline, "on_ready"):
++            self.pipeline.on_ready = lambda: self._refresh_cursor(gen)
++        # Announce the encoded raster before any new-format video can arrive.
++        # Legacy pipelines without this attribute retain their original wire behavior.
++        stream_config = getattr(self.pipeline, "stream_config", None)
++        if isinstance(stream_config, dict):
++            self.send(protocol.encode_control(stream_config))
+         self.pipeline.start()                    # a fresh encoder opens with an IDR
+         self._reset_cursor(geom)
+         self.paused = False
+@@ -186,6 +196,13 @@ class Session:
+                 log.debug("cursor state unavailable: %s", e)
+         self.cursor.reset(geom, sprite, pointer)
+ 
++    def _refresh_cursor(self, gen):
++        # A receiver can create its video view before the first new-size frame.
++        # Replay the real sprite/position after that frame, without moving X's
++        # pointer. Never let a late callback restore state from an old stream.
++        if gen == self._gen and self.pipeline is not None and not self.ended:
++            self._reset_cursor(self.geom)
++
+     def on_pointer(self, x: int, y: int):
+         if self.cursor is not None and self.geom is not None and not self.ended:
+             self.cursor.update(x, y)
+@@ -773,6 +790,9 @@ def facts(daemon, display) -> dict:
+         if session.geom:
+             g = session.geom
+             out["monitor"] = [g.w, g.h, g.x, g.y]
++        if hasattr(session.pipeline, "stream_size"):
++            out["video_size"] = list(session.pipeline.stream_size)
++            out["fps_target"] = session.pipeline.target_fps
+     return out
+ 
+ 
+@@ -824,7 +844,8 @@ def apply_config(cfg, new, daemon, injector) -> str:
+     return f"{', '.join(sorted(changed))}: {how}"
+ 
+ 
+-def run(cfg, display, injector, make_pipeline, tcp=None, udid=None, config_path=None) -> bool:
++def run(cfg, display, injector, make_pipeline, tcp=None, udid=None, config_path=None,
++        prepare_socket=None) -> bool:
+     """The daemon's main loop: until SIGINT/SIGTERM, or a package upgrade (returns True: the
+     caller exits with upgrade.EX_RESTART so systemd starts the new version). `tcp` = (host,
+     port) dials a receiver directly as an always-attached device (tools/fake_receiver.py)."""
+@@ -856,6 +877,9 @@ def run(cfg, display, injector, make_pipeline, tcp=None, udid=None, config_path=
+                               timeout=cfg.transport.usbmuxd_timeout_s)
+ 
+     def open_connection(sock, on_end, on_hello):
++        # PadBridge extension: configure per-stream buffering without global socket patches.
++        if prepare_socket is not None:
++            prepare_socket(sock)
+         return Connection(cfg, sock, display, injector, make_pipeline, on_end, on_hello,
+                           on_change=schedule_publish, cursor_source=activity)
+ 

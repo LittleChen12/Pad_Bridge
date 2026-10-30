@@ -1,0 +1,35 @@
+/* A compact sidebar, quiet cards, and an indigo accent. */
+window.padbridge { background: #f5f6fa; color: #252836; font-size: 14px; }
+.padbridge headerbar { background: #ffffff; border-bottom: 1px solid #e8eaf1; box-shadow: none; }
+.padbridge headerbar title { font-weight: 600; }
+.sidebar { background: #ffffff; border-right: 1px solid #e8eaf1; padding: 24px 14px 16px; }
+.brand { font-size: 21px; font-weight: 700; color: #353954; }
+.version, .muted { color: #8a8f9f; font-size: 12px; }
+.nav { background: transparent; background-image: none; border: none; box-shadow: none; border-radius: 9px; padding: 12px 14px; color: #656a7e; }
+.nav:hover { background: #f5f5fb; }
+.nav.active { background: #eeedff; color: #6059d9; font-weight: 600; }
+.page-title { font-size: 23px; font-weight: 700; color: #272b3d; }
+.page-subtitle { color: #9095a5; font-size: 12px; }
+.card { background: #ffffff; border: 1px solid #e8eaf1; border-radius: 13px; padding: 20px; }
+.field-label { color: #555c70; font-weight: 600; }
+.section-title { font-size: 15px; font-weight: 600; color: #3b4057; }
+.status-title { font-size: 19px; font-weight: 600; color: #373e53; }
+.status-detail { color: #8a90a1; font-size: 12px; }
+.status-icon { color: #7770de; background: #f0efff; border-radius: 12px; padding: 13px; }
+.hint { color: #7e7a9d; font-size: 12px; }
+.error { color: #be5264; }
+.padbridge button { background-image: none; box-shadow: none; text-shadow: none; border-radius: 8px; border: 1px solid #e2e5ee; background-color: #ffffff; color: #596177; padding: 8px 14px; }
+.padbridge button:hover { background-color: #f4f3fc; }
+.padbridge button:disabled { color: #b0b4c0; background-color: #f7f8fb; border-color: #eceef4; }
+.padbridge .primary { background-color: #6962df; color: #ffffff; border-color: #6962df; font-weight: 600; padding: 11px 22px; }
+.padbridge .primary:hover { background-color: #5e57d1; }
+.padbridge .disconnect { background-color: #fff4f5; color: #bc5c6b; border-color: #f0dfe3; padding: 11px 22px; }
+.padbridge .choice { background-color: #f6f7fb; border-color: #edf0f6; padding: 10px 16px; }
+.padbridge .choice:checked { background-color: #eeedff; border-color: #bdb8f2; color: #635bd9; font-weight: 600; }
+.padbridge entry, .padbridge spinbutton, .padbridge combobox button { background-color: #fafbfe; color: #454c61; border: 1px solid #e3e6ef; border-radius: 7px; box-shadow: none; min-height: 24px; }
+.padbridge entry:focus { border-color: #9d96ed; }
+.padbridge .plain { border: none; background: transparent; color: #736bd7; padding: 4px 8px; }
+.padbridge .small { font-size: 12px; }
+.padbridge .nav { background: transparent; border: none; color: #656a7e; }
+.padbridge .nav.active { background: #eeedff; color: #6059d9; }
+.padbridge separator { background-color: #eef0f6; min-height: 1px; }
