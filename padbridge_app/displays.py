@@ -7,6 +7,7 @@ import re
 import subprocess
 from odx11 import display
 from .paths import MARKER, RUNTIME
+from .video import mirror_size
 log = logging.getLogger('padbridge.display')
 
 
@@ -125,21 +126,6 @@ class HybridDisplay(display.VirtualDisplay):
         super().teardown()
         if self.port.exists() and (self.port / 'status').read_text().strip() == 'disconnected':
             MARKER.unlink(missing_ok=True)
-
-
-def mirror_size(width, height, limits=None, bound=None, fps=60):
-    """Fit only the encoded video to decoder limits; never change the main output."""
-    max_w = limits.max_w if limits and limits.max_w else width
-    max_h = limits.max_h if limits and limits.max_h else height
-    scale = min(1.0, max_w / width, max_h / height)
-    if bound:
-        scale = min(scale, bound[0] / width, bound[1] / height)
-    if limits and limits.max_pps:
-        scale = min(scale, (limits.max_pps / (fps * width * height)) ** 0.5)
-    w, h = int(width * scale) // 2 * 2, int(height * scale) // 2 * 2
-    if min(w, h) < 2:
-        raise ValueError('接收端的解码尺寸限制过小。')
-    return w, h
 
 
 class MirrorDisplay(display.VirtualDisplay):

@@ -1,0 +1,16 @@
+av==19.0.2
+zeroconf==0.152.0
+psutil==7.2.2
+PySide6-Essentials==6.12.0
+dxcam[winrt]==0.3.0
+numpy==2.5.4
+comtypes==1.4.17
+winrt-runtime==4.0.3
+winrt-Windows.Foundation==4!10.0.28000.2705
+winrt-Windows.Foundation.Collections==4!10.0.28000.2705
+winrt-Windows.Graphics==4!10.0.28000.2705
+winrt-Windows.Graphics.Capture==4!10.0.28000.2705
+winrt-Windows.Graphics.Capture.Interop==4.0.0
+winrt-Windows.Graphics.DirectX==4!10.0.28000.2705
+winrt-Windows.Graphics.DirectX.Direct3D11==4!10.0.28000.2705
+winrt-Windows.Graphics.DirectX.Direct3D11.Interop==4.1.0

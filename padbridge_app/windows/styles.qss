@@ -1,0 +1,49 @@
+/* Mirrors the palette and hierarchy of the Ubuntu ui/styles.css. */
+QWidget { color: #252836; font-family: "Microsoft YaHei UI", "Segoe UI"; font-size: 14px; }
+QMainWindow, QWidget#shell, QStackedWidget, QWidget[role="page"], QScrollArea { background: #f5f6fa; }
+QScrollArea { border: none; }
+QWidget#sidebar { background: #ffffff; border-right: 1px solid #e8eaf1; }
+QLabel { background: transparent; border: none; }
+QLabel[role="brand"] { font-size: 21px; font-weight: 700; color: #353954; }
+QLabel[role="muted"], QLabel[role="version"] { color: #8a8f9f; font-size: 12px; }
+QLabel[role="page-title"] { font-size: 23px; font-weight: 700; color: #272b3d; }
+QLabel[role="page-subtitle"] { color: #9095a5; font-size: 12px; }
+QFrame[role="card"] { background: #ffffff; border: 1px solid #e8eaf1; border-radius: 13px; }
+QLabel[role="field-label"] { color: #555c70; font-weight: 600; }
+QLabel[role="section-title"] { font-size: 15px; font-weight: 600; color: #3b4057; }
+QLabel[role="status-title"] { font-size: 19px; font-weight: 600; color: #373e53; }
+QLabel[role="status-detail"] { color: #8a90a1; font-size: 12px; }
+QLabel[role="status-icon"] { background: #f0efff; border-radius: 12px; }
+QLabel[role="hint"] { color: #7e7a9d; font-size: 12px; }
+QLabel[role="error"] { color: #be5264; font-size: 12px; }
+QFrame[role="separator"] { background: #eef0f6; border: none; max-height: 1px; }
+QPushButton, QToolButton { border-radius: 8px; border: 1px solid #e2e5ee; background: #ffffff; color: #596177; padding: 8px 14px; }
+QPushButton:hover, QToolButton:hover { background: #f4f3fc; }
+QPushButton:disabled, QToolButton:disabled { color: #b0b4c0; background: #f7f8fb; border-color: #eceef4; }
+QPushButton:focus, QToolButton:focus { border-color: #9d96ed; }
+QPushButton[role="primary"] { background: #6962df; color: #ffffff; border-color: #6962df; font-weight: 600; padding: 11px 22px; }
+QPushButton[role="primary"]:hover { background: #5e57d1; }
+QPushButton[role="primary"]:disabled { background: #b6b2ee; border-color: #b6b2ee; }
+QPushButton[role="disconnect"] { background: #fff4f5; color: #bc5c6b; border-color: #f0dfe3; padding: 11px 22px; }
+QPushButton[role="choice"] { background: #f6f7fb; border-color: #edf0f6; padding: 10px 16px; }
+QPushButton[role="choice"]:checked { background: #eeedff; border-color: #bdb8f2; color: #635bd9; font-weight: 600; }
+QPushButton[role="nav"] { background: transparent; border: 1px solid transparent; color: #656a7e; border-radius: 9px; padding: 12px 14px; text-align: left; }
+QPushButton[role="nav"]:hover { background: #f5f5fb; }
+QPushButton[role="nav"]:checked { background: #eeedff; color: #6059d9; font-weight: 600; }
+QPushButton[role="plain"], QToolButton[role="plain"] { border: 1px solid transparent; background: transparent; color: #736bd7; padding: 4px 8px; }
+QPushButton[role="plain"]:hover, QToolButton[role="plain"]:hover { background: #eeedff; }
+QLineEdit, QSpinBox, QComboBox { background: #fafbfe; color: #454c61; border: 1px solid #e3e6ef; border-radius: 7px; padding: 6px 10px; min-height: 24px; selection-background-color: #eeedff; selection-color: #454c61; }
+QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border-color: #9d96ed; }
+QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled { color: #b0b4c0; background: #f7f8fb; }
+QComboBox::drop-down { border: none; width: 24px; }
+QComboBox QAbstractItemView { background: #ffffff; border: 1px solid #e3e6ef; padding: 4px; selection-background-color: #eeedff; selection-color: #635bd9; }
+QMenu { background: #ffffff; border: 1px solid #e3e6ef; padding: 5px; }
+QMenu::item { padding: 8px 18px; }
+QMenu::item:selected { background: #eeedff; color: #635bd9; }
+QMenu::separator { background: #eef0f6; height: 1px; margin: 5px; }
+QScrollBar:vertical { background: transparent; width: 9px; margin: 3px 0; }
+QScrollBar::handle:vertical { background: #dcdfe9; min-height: 28px; border-radius: 4px; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
+QPlainTextEdit { border: 1px solid #e3e6ef; border-radius: 8px; background: #fafbfe; padding: 10px; }
+QToolTip { background: #ffffff; color: #454c61; border: 1px solid #e3e6ef; padding: 5px; }

@@ -84,6 +84,7 @@ class ProbeTests(unittest.TestCase):
     def test_tcp_backlog_is_bounded_without_system_changes(self):
         with socket.socket() as sock:
             network.configure_video_socket(sock)
+            self.assertEqual(sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY), 1)
             # Linux reports twice the requested value for bookkeeping overhead.
             self.assertLessEqual(sock.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF), 128 * 1024)
             if hasattr(socket, 'TCP_NOTSENT_LOWAT'):

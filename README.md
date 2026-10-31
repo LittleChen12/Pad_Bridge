@@ -1,10 +1,32 @@
 # PadBridge
 
-通过 USB 或同一局域网 Wi-Fi，把 iPad 用作 Ubuntu 的扩展屏或镜像屏。
+通过 USB 或同一局域网 Wi-Fi，把 iPad 用作电脑的镜像屏或扩展屏。
+支持 Ubuntu/Xorg；0.3.0 新增 Windows 11 x64 后端。
 iPad 端使用 [OpenDisplay](https://apps.apple.com/app/id6780264891)（Philip Poloczek）。
 
 [下载最新版本](https://github.com/LittleChen12/Pad_Bridge/releases/latest) ·
-[开发与构建](CONTRIBUTING.md) · [0.2.0 发布说明](docs/releases/v0.2.0.md)
+[Windows 11 使用说明](docs/windows.md) · [开发与构建](CONTRIBUTING.md) · [0.3.0 发布说明](docs/releases/v0.3.0.md)
+
+本轮 Windows 迭代的改动、实现方式与实测数据见 [优化记录](docs/windows-optimization.md)；
+切回 Ubuntu 接着开发见 [Linux 升级交接](docs/linux-upgrade.md)。0.3.0 当前为开发版本，
+分支 CI 产物与已发布的 GitHub Release 分开；仅推送版本标签才发布正式安装包。
+
+## Windows 11
+
+便携包完整解压后双击 `PadBridge.exe`。源码开发运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1
+.\padbridge.cmd
+```
+
+默认镜像主屏；首次安装签名扩展组件后，可自动创建 iPad 副屏，断开后收回。
+扩展模式可保存副屏默认位于左侧或右侧；命令行还可选择 Windows 已启用的物理或虚拟副屏。
+使用 Windows Graphics Capture（GDI 回退）、低延迟 NVENC / x264 编码和独立后台进程，
+支持 USB、Wi-Fi、触控和托盘。Qt 界面延续 Ubuntu 版的侧栏、卡片和配色。
+NVENC 直接处理 BGRA，画面处理与网络发送并行；切换镜像/扩展时自动同步 iPad 的画面比例。
+USB 需要 Apple 移动设备支持。安装、测试、构建与实机验收范围见 [Windows 文档](docs/windows.md)。
+以下安装及系统依赖说明针对 Ubuntu。
 
 ## 安装与支持范围
 
@@ -13,13 +35,13 @@ iPad 端使用 [OpenDisplay](https://apps.apple.com/app/id6780264891)（Philip P
 从 Releases 下载 `.deb` 后，在文件所在目录运行：
 
 ```bash
-sudo apt install ./padbridge_0.2.0_amd64.deb
+sudo apt install ./padbridge_0.3.0_amd64.deb
 ```
 
 安装后从应用菜单打开 **PadBridge**。安装包使用系统依赖，不包含设备 IP、用户设置或开发缓存。
 不设置开机启动、不更改启动参数、显卡驱动或 sudoers。
 Ubuntu 默认使用 Wayland 的电脑，需要在登录界面选择 **Ubuntu on Xorg**。
-其他 Ubuntu / Debian 版本、ARM、Windows 和 macOS 未作为本包的支持目标。
+其他 Ubuntu / Debian 版本、ARM 和 macOS 未作为本包的支持目标；Windows 使用独立便携包。
 
 - **镜像**：读取现有主屏，不创建虚拟输出，不改主屏分辨率、刷新率或布局。
 - **扩展**：需要 Intel / AMD 驱动支持的空闲 HDMI 接口；不是所有电脑都具备这个条件。
@@ -63,7 +85,7 @@ Wi-Fi 需要同一局域网，并允许 OpenDisplay 的“本地网络”权限�
 - 托盘或窗口菜单 **退出 PadBridge**：先停止串流、收回属于本程序的虚拟屏，再结束整个软件。
 - 镜像退出不会关闭电脑物理屏幕。
 - 没有托盘宿主时，窗口不会直接隐藏失联，会提示启用托盘或使用菜单退出。
-- 未连接时不运行采集、转换或编码，只有 GTK 界面、托盘和低频状态检查。
+- 未连接时不运行采集、转换或编码，只有对应平台的界面、托盘和低频状态检查。
 
 USB 拔线会收回扩展屏；Wi-Fi 连接不依赖数据线。正常连接中断时会尝试重连。
 本版本修复了 XShm 截图与屏幕尺寸变化之间的特定 BadMatch 竞争：丢弃无效帧并重新采集。
@@ -106,8 +128,9 @@ journalctl --user -u padbridge.service -f
 | `ui/application.py`、`ui/window.py` | 异步界面行为与窗口布局 |
 | `ui/panels.py`、`ui/tray.py`、`ui/styles.css` | 控件、托盘、样式 |
 | `enable_display.py` | 独立的最小权限辅助程序 |
+| `windows/` | Windows 的采集、编码、设备、输入、工作进程和 Qt 界面，详见 [模块对应表](docs/linux-upgrade.md#模块对应表) |
 
-界面不直接设置显示模式，也不启动编码器；用户连接后才创建独立的 systemd 用户工作进程。
+界面不直接设置显示模式，也不启动编码器；用户连接后才创建独立工作进程，Linux 由 systemd 用户服务管理。
 镜像适配器仅查询 RandR。输入与光标始终按原始采集区域映射，与视频缩放解耦。
 
 ```bash
@@ -122,7 +145,7 @@ python3 packaging/build_deb.py
 回归测试覆盖协议 / 会话、PRIME 接口匹配、授权范围、参数迁移、解码上限和主屏不被修改。
 `tests/isolated_capture.py` 在离屏 Xephyr 中复现尺寸变化导致的截图错误，对照无保护与有保护的行为；
 不调整真实显示器。额外实机检查包括镜像、扩展、参数应用、托盘退出和闲置占用。
-构建输出为 `dist/padbridge_0.2.0_amd64.deb`。
+构建输出为 `dist/padbridge_0.3.0_amd64.deb`。
 
 ## 已知边界与来源
 

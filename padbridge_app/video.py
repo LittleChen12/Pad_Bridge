@@ -1,7 +1,23 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Validated, saved stream controls shared by the controller and worker."""
 from dataclasses import asdict, dataclass
+import math
 import re
+
+
+def mirror_size(width, height, limits=None, bound=None, fps=60):
+    """Fit the encoded raster; leave desktop geometry and input coordinates intact."""
+    max_w = limits.max_w if limits and limits.max_w else width
+    max_h = limits.max_h if limits and limits.max_h else height
+    scale = min(1.0, max_w / width, max_h / height)
+    if bound:
+        scale = min(scale, bound[0] / width, bound[1] / height)
+    if limits and limits.max_pps:
+        scale = min(scale, math.sqrt(limits.max_pps / (fps * width * height)))
+    w, h = int(width * scale) // 2 * 2, int(height * scale) // 2 * 2
+    if min(w, h) < 2:
+        raise ValueError('接收端的解码尺寸限制过小。')
+    return w, h
 
 
 @dataclass(frozen=True)

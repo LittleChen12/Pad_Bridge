@@ -1,7 +1,10 @@
 # 开发说明
 
-当前开发与发布目标是 Ubuntu 24.04 amd64，桌面运行需要 Xorg。
-Windows 版本尚未实现。
+开发与发布目标为 Ubuntu 24.04 amd64 / Xorg，以及 Windows 11 x64。
+Windows 环境、测试和便携构建见 [Windows 开发说明](docs/windows.md)。
+下文命令用于 Ubuntu；Windows 平台实现集中在 `padbridge_app/windows/`，不得在公共入口导入 X11/GTK。
+本轮实现与实测结论见 [Windows 优化记录](docs/windows-optimization.md)，后续 Linux 工作入口见
+[Linux 升级交接](docs/linux-upgrade.md)。跨平台共享改动应同时检查两套测试。
 
 ## 获取源码
 
@@ -41,7 +44,8 @@ python3 packaging/build_release.py
 
 版本号位于 `padbridge_app/__init__.py`，发布说明位于 `docs/releases/v<版本>.md`。
 推送与版本号一致的 `v<版本>` 标签后，GitHub Actions 先测试、构建和检查包，
-再创建 GitHub Release 并附上产物。日常分支与 PR 运行相同的无设备测试和构建检查。
+再创建 GitHub Release 并附上产物。`main`、`feature/**` 分支推送和 PR 都运行 Ubuntu/Windows
+无设备测试与构建检查；分支推送只上传 CI 产物，不创建 Release。
 
 ## 代码边界
 

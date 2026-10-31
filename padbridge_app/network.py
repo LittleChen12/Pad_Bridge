@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import socket
+import sys
 
 from odx11 import protocol
 
@@ -22,13 +23,14 @@ def configure_video_socket(sock):
     """
     if sock.family not in (socket.AF_INET, socket.AF_INET6):
         return
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 64 * 1024)
     if hasattr(socket, 'TCP_NOTSENT_LOWAT'):
         try:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NOTSENT_LOWAT, 16 * 1024)
         except OSError:
             pass  # SO_SNDBUF still bounds the backlog on kernels without this option.
-    log.info('Wi-Fi TCP 发送缓冲：%d bytes', sock.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF))
+    log.info('TCP 发送缓冲：%d bytes', sock.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF))
 
 
 @dataclass(frozen=True)
@@ -104,6 +106,9 @@ def discover(timeout=4.0):
     A private GLib context makes this safe to invoke on a GTK worker thread.
     No port is probed and no connection is adopted during discovery.
     """
+    if sys.platform == 'win32':
+        from .windows.transport import discover as windows_discover
+        return windows_discover(timeout)
     from gi.repository import Gio, GLib
     context = GLib.MainContext.new()
     context.push_thread_default()
@@ -221,6 +226,7 @@ def resolve_target(address=''):
     try:
         hello = probe(endpoint, receiver_id)
     except (OSError, EOFError) as exc:
-        raise RuntimeError(f'无法连接 {format_endpoint(*endpoint)}。请确认 iPad 与电脑在同一局域网，且 OpenDisplay 正在前台运行。') from exc
+        raise RuntimeError(f'无法连接 {format_endpoint(*endpoint)}。请确认 iPad 与电脑在同一局域网，且 OpenDisplay 正在前台运行。'
+                           '若地址正确、能搜索到却仍超时，可先在 iPad 设置中重新连接 Wi-Fi 后重试。') from exc
     return {'transport': 'wifi', 'address': format_endpoint(*endpoint), 'name': name,
             'receiver_id': hello.get('id', '')}

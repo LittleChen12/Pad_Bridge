@@ -3,6 +3,8 @@
 /gst-plugins/
 /validation/
 /dist/
+/build/
+*.spec
 __pycache__/
 *.py[cod]
 .pytest_cache/
