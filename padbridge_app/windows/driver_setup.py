@@ -83,11 +83,9 @@ def install_device(inf, interactive=False):
 
 def verify_signatures(directory):
     # Arguments are passed via JSON on stdin, never interpolated into shell code.
-    script = "$paths = [Console]::In.ReadToEnd() | ConvertFrom-Json; $paths | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ } | ForEach-Object { @{ status=$_.Status.ToString(); signer=$_.SignerCertificate.Subject } } | ConvertTo-Json -Compress"
+    script = "$p = [Console]::In.ReadToEnd() | ConvertFrom-Json; $p.paths | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ } | ForEach-Object { @{ status=$_.Status.ToString(); signer=$_.SignerCertificate.Subject } } | ConvertTo-Json -Compress"
     paths = [str(directory/name) for name in ('mttvdd.cat', 'MttVDD.dll')]
-    result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script],
-                            input=json.dumps(paths), capture_output=True, text=True, timeout=45,
-                            creationflags=subprocess.CREATE_NO_WINDOW, check=True)
+    result = device_control.powershell(script, {'paths': paths})
     signatures = json.loads(result.stdout)
     if len(signatures) != 2 or any(s['status'] != 'Valid' or 'O=SignPath Foundation' not in s['signer']
                                    for s in signatures):

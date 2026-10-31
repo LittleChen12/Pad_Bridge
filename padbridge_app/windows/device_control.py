@@ -100,6 +100,10 @@ def powershell(script, data):
     script = '[Console]::OutputEncoding = [Console]::InputEncoding = New-Object Text.UTF8Encoding($false)\n' + script
     return subprocess.run([str(POWERSHELL), '-NoProfile', '-NonInteractive', '-Command', script],
                           input=json.dumps(data), text=True, encoding='utf-8', errors='replace', capture_output=True,
+                          # A setup launched from pwsh can inherit PowerShell 7's
+                          # incompatible Security module. This helper uses only
+                          # the inbox Windows PowerShell 5.1 modules.
+                          env={**os.environ, 'PSModulePath': str(POWERSHELL.parent / 'Modules')},
                           creationflags=subprocess.CREATE_NO_WINDOW, timeout=45, check=True)
 
 
