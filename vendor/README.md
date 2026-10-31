@@ -20,6 +20,8 @@ Local changes are confined to `odx11/daemon.py` and recorded in
 - Calculate decoder throughput from the encoded raster, preserving source coordinates.
 - Announce stream configuration before video and resynchronize cursor state after the first frame.
 - Publish encoded dimensions and target frame rate.
+- Inject an ordered socket writer without blocking GLib on network sends.
+- Publish bounded receiver statistics and rolling pipeline/sender timings only while streaming.
 
 Display creation, read-only mirroring, encoding, capture recovery and the controller
 are implemented in `padbridge_app/`. Refresh the patch and run `./test.sh --unit-only`

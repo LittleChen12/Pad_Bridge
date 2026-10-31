@@ -37,7 +37,7 @@ def current_status():
     return facts
 
 
-def start(transport=None, address=None, display_mode=None, video=None):
+def start(transport=None, address=None, display_mode=None, video=None, display_position=None):
     if os.environ.get('XDG_SESSION_TYPE', 'x11') != 'x11':
         raise RuntimeError('当前版本需要 Xorg。请在 Ubuntu 登录界面选择“Ubuntu on Xorg”后使用。')
     if active():
@@ -48,11 +48,16 @@ def start(transport=None, address=None, display_mode=None, video=None):
             raise RuntimeError('请先停止当前画面，再切换扩展 / 镜像模式。')
         if video and video.to_dict() != current.get('video_options', VideoOptions().to_dict()):
             raise RuntimeError('请先停止画面，再修改参数并启动。')
+        if display_position and display_position != current.get('display_position', 'right'):
+            raise RuntimeError('请先断开连接，再修改副屏默认位置。')
         return current
     previous = preferences()
     transport = transport or previous['transport']
     display_mode = display_mode or previous['display_mode']
     video = video or VideoOptions.from_dict(previous['video_options'])
+    display_position = display_position or previous['display_position']
+    if display_position not in ('left', 'right'):
+        raise ValueError('副屏位置必须为左侧或右侧。')
     if transport not in ('usb', 'wifi'):
         raise ValueError('连接方式必须为 USB 或 Wi-Fi。')
     if display_mode not in ('extend', 'mirror'):
@@ -62,6 +67,8 @@ def start(transport=None, address=None, display_mode=None, video=None):
         target = network.resolve_target(previous['address'] if address is None else address)
     target['display_mode'] = display_mode
     target['video_options'] = video.to_dict()
+    target['display_position'] = display_position
+    target['monitor'] = previous['monitor']
     if display_mode == 'extend':
         authorize()
     command = ['systemd-run', '--user', '--unit=padbridge', '--collect',
@@ -73,7 +80,7 @@ def start(transport=None, address=None, display_mode=None, video=None):
             command.append(f'--setenv={name}={os.environ[name]}')
     worker = [LAUNCHER, 'run', '--transport', transport, '--display-mode', display_mode]
     worker += ['--resolution', video.resolution, '--fps', str(video.fps),
-               '--bitrate', str(video.bitrate_mbps)]
+               '--bitrate', str(video.bitrate_mbps), '--display-position', display_position]
     if transport == 'wifi':
         worker += ['--address', target['address']]
     subprocess.run([*command, *worker], check=True)

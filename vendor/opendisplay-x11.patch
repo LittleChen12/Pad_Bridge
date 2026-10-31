@@ -1,8 +1,23 @@
 diff --git a/odx11/daemon.py b/odx11/daemon.py
-index e3c50ae..cd320a6 100644
 --- a/odx11/daemon.py
 +++ b/odx11/daemon.py
-@@ -155,9 +155,19 @@ class Session:
+@@ -65,6 +65,7 @@
+         self.on_hello = on_hello
+         self.call_later = call_later
+         self.send = send
++        self.send_video = None           # optional ordered, asynchronous socket adapter
+         self.display = display
+         self.injector = injector
+         self.make_pipeline = make_pipeline
+@@ -86,6 +87,7 @@
+         self._cancel_settle = None           # one late frame after the screen goes quiet
+         self._settled = True                 # the settle frame for the last change was sent
+         self._fps = 60
++        self.receiver_stats = {}
+ 
+     # --- inbound ---------------------------------------------------------------
+     def on_payload(self, payload: bytes):
+@@ -155,9 +157,19 @@
          self._fps = fps
          if self.limits.max_fps:
              fps = min(fps, int(self.limits.max_fps))
@@ -23,47 +38,93 @@ index e3c50ae..cd320a6 100644
          self.pipeline.start()                    # a fresh encoder opens with an IDR
          self._reset_cursor(geom)
          self.paused = False
-@@ -186,6 +196,13 @@ class Session:
+@@ -185,6 +197,13 @@
+             except Exception as e:                # X hiccup: the next event resends
                  log.debug("cursor state unavailable: %s", e)
          self.cursor.reset(geom, sprite, pointer)
- 
++
 +    def _refresh_cursor(self, gen):
 +        # A receiver can create its video view before the first new-size frame.
 +        # Replay the real sprite/position after that frame, without moving X's
 +        # pointer. Never let a late callback restore state from an old stream.
 +        if gen == self._gen and self.pipeline is not None and not self.ended:
 +            self._reset_cursor(self.geom)
-+
+ 
      def on_pointer(self, x: int, y: int):
          if self.cursor is not None and self.geom is not None and not self.ended:
-             self.cursor.update(x, y)
-@@ -773,6 +790,9 @@ def facts(daemon, display) -> dict:
+@@ -307,6 +326,8 @@
+             self.pipeline.force_idr()
+ 
+     def _on_stats(self, msg):
++        self.receiver_stats = {str(k)[:64]: v for k, v in list(msg.items())[:32]
++                               if type(v) is bool or (type(v) in (int, float) and -1e12 < v < 1e12)}
+         log.info("PHONE-STATS %s", {k: v for k, v in msg.items() if k != "type"})
+ 
+     def _on_sleeping(self, msg):
+@@ -320,7 +341,10 @@
+         # Runs on the streaming thread: no X calls here. A failed send ends the session;
+         # re-raising tells the pipeline to stop.
+         try:
+-            self.send(protocol.encode_video(au, cap_ms, self.clock() if cap_ms is not None else None))
++            if self.send_video is not None:
++                self.send_video(au, cap_ms)
++            else:
++                self.send(protocol.encode_video(au, cap_ms, self.clock() if cap_ms is not None else None))
+         except OSError as e:
+             self.end(f"send failed: {e}", GRACE)
+             raise
+@@ -773,6 +797,19 @@
          if session.geom:
              g = session.geom
              out["monitor"] = [g.w, g.h, g.x, g.y]
 +        if hasattr(session.pipeline, "stream_size"):
 +            out["video_size"] = list(session.pipeline.stream_size)
 +            out["fps_target"] = session.pipeline.target_fps
++        statistics = getattr(session.pipeline, "statistics", None)
++        if callable(statistics):
++            extra = statistics()
++            if isinstance(extra, dict):
++                out.update(extra)
++        if session.receiver_stats:
++            out["receiver_stats"] = session.receiver_stats
++        send_statistics = getattr(daemon.conn, "statistics", None)
++        if callable(send_statistics):
++            out.setdefault("timings_ms", {}).update(send_statistics())
      return out
  
  
-@@ -824,7 +844,8 @@ def apply_config(cfg, new, daemon, injector) -> str:
+@@ -824,7 +861,8 @@
      return f"{', '.join(sorted(changed))}: {how}"
  
  
 -def run(cfg, display, injector, make_pipeline, tcp=None, udid=None, config_path=None) -> bool:
 +def run(cfg, display, injector, make_pipeline, tcp=None, udid=None, config_path=None,
-+        prepare_socket=None) -> bool:
++        prepare_socket=None, statistics_interval=0, connection_factory=None) -> bool:
      """The daemon's main loop: until SIGINT/SIGTERM, or a package upgrade (returns True: the
      caller exits with upgrade.EX_RESTART so systemd starts the new version). `tcp` = (host,
      port) dials a receiver directly as an always-attached device (tools/fake_receiver.py)."""
-@@ -856,6 +877,9 @@ def run(cfg, display, injector, make_pipeline, tcp=None, udid=None, config_path=
+@@ -856,7 +894,10 @@
                                timeout=cfg.transport.usbmuxd_timeout_s)
  
      def open_connection(sock, on_end, on_hello):
+-        return Connection(cfg, sock, display, injector, make_pipeline, on_end, on_hello,
 +        # PadBridge extension: configure per-stream buffering without global socket patches.
 +        if prepare_socket is not None:
 +            prepare_socket(sock)
-         return Connection(cfg, sock, display, injector, make_pipeline, on_end, on_hello,
++        return (connection_factory or Connection)(cfg, sock, display, injector, make_pipeline, on_end, on_hello,
                            on_change=schedule_publish, cursor_source=activity)
  
+     daemon = Daemon(cfg, dial, display, open_connection, glib_call_later)
+@@ -937,6 +978,12 @@
+     if activity:
+         watches.append(GLib.io_add_watch(activity.fileno(), GLib.PRIORITY_DEFAULT,
+                                          GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR, on_activity))
++    if statistics_interval > 0:
++        def publish_statistics():
++            if daemon.conn is not None and daemon.conn.session.pipeline is not None:
++                schedule_publish()
++            return GLib.SOURCE_CONTINUE
++        watches.append(GLib.timeout_add(max(250, int(statistics_interval*1000)), publish_statistics))
+     watcher = None
+     if tcp:
+         GLib.idle_add(lambda: daemon.on_attached("tcp", f"{tcp[0]}:{tcp[1]}") and False)

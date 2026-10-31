@@ -1,5 +1,9 @@
 # 切回 Linux 后的升级交接
 
+> 这是 Windows 迭代结束时的交接快照。后续移植已在 `feature/linux-upgrade` 实施；
+> 当前代码、测试结果和仍有差异的项目见 [Linux 优化记录](linux-optimization.md)。
+> 下文的“暂不支持/待迁移”描述对应原 `feature/windows11`，不代表 Linux 升级分支现状。
+
 本轮 Windows 工作基于 Ubuntu 0.2.0（`4f9f9fb`），保存在 `feature/windows11`。
 当前共享版本号为 0.3.0，尚未通过版本标签发布；此分支可作为下一轮 Linux 开发起点。
 已完成的实现和实测数据见 [Windows 优化记录](windows-optimization.md)。

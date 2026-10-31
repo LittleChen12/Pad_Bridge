@@ -28,6 +28,7 @@ class Application(Gtk.Application):
         self._save_pending = self._refresh_pending = None
         self._monitors, self._signals, self._sources = [], [], []
         self._shown_pid = None
+        self._operation_error = None
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -106,7 +107,8 @@ class Application(Gtk.Application):
             previous = dict(data)
             panel = self.window.connection
             data.update(transport=panel.transport.get(), display_mode=panel.mode.get(),
-                        address=panel.address.get_text().strip(), video_options=video.to_dict())
+                        address=panel.address.get_text().strip(), video_options=video.to_dict(),
+                        display_position=panel.position.get())
             if data != previous:
                 save_preferences(data)
             res = '原生' if video.resolution=='native' else video.resolution.replace('x',' × ')
@@ -135,8 +137,11 @@ class Application(Gtk.Application):
             self.updating = True
             self.window.connection.mode.set(facts.get('display_mode','extend'))
             self.window.connection.transport.set(facts.get('transport','usb'))
+            self.window.connection.position.set(facts.get('display_position','right'))
             self.window.video.load(facts.get('video_options',VideoOptions().to_dict()))
             self.updating = False
+        if self._operation_error:
+            facts = {**facts, 'state': state.PROBLEM, 'problem': self._operation_error}
         self.window.render(facts, self.running)
         if self.tray:
             self.tray.update(self.running, self.window.connection.mode.get()=='mirror')
@@ -148,6 +153,7 @@ class Application(Gtk.Application):
         if self.busy:
             return
         self.busy = True
+        self._operation_error = None
         self.window.connection.heading.set_text(message)
         self.window.connection.detail.set_text('请稍候…')
         self.window.render({}, self.running, busy=True)
@@ -182,7 +188,8 @@ class Application(Gtk.Application):
             return
         panel = self.window.connection
         mode, transport, address = panel.mode.get(), panel.transport.get(), panel.address.get_text().strip()
-        self.work(lambda: service.start(transport,address,mode,video), '正在连接 iPad')
+        position = panel.position.get()
+        self.work(lambda: service.start(transport,address,mode,video,position), '正在连接 iPad')
 
     def disconnect_display(self):
         self.work(service.stop, '正在断开连接')
@@ -238,12 +245,10 @@ class Application(Gtk.Application):
         subprocess.Popen(['gnome-control-center','display'])
 
     def show_error(self, title, message):
+        self._operation_error = message
+        self.window.show_page('connection')
         self.window.present()
-        dialog = Gtk.MessageDialog(transient_for=self.window, modal=True,
-                 message_type=Gtk.MessageType.ERROR, buttons=Gtk.ButtonsType.CLOSE, text=title)
-        dialog.format_secondary_text(message)
-        dialog.run()
-        dialog.destroy()
+        self.window.render({'state': state.PROBLEM, 'problem': message}, self.running)
 
     def do_shutdown(self):
         for monitor in self._monitors:

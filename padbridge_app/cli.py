@@ -36,7 +36,7 @@ def main():
     parser.add_argument('--bitrate', type=int, help='目标码率 Mbps，1～50；0 为 USB 24 / Wi-Fi 10')
     parser.add_argument('--monitor', help='Windows 扩展模式的显示器名称（monitors 命令查询）')
     parser.add_argument('--display-position', choices=('left', 'right'),
-                        help='Windows 自动创建的副屏默认放在电脑桌面左侧或右侧')
+                        help='新连接的副屏默认放在电脑桌面左侧或右侧')
     parser.add_argument('--worker-token', help=argparse.SUPPRESS)
     parser.add_argument('--receiver-id', default='', help=argparse.SUPPRESS)
     parser.add_argument('--interactive', action='store_true', help='安装显示驱动时显示 Windows 发布者确认窗口')
@@ -52,7 +52,9 @@ def main():
                 data[key] = value
         video = VideoOptions.from_dict(data)
     if args.command == 'start':
-        extra = {'monitor': args.monitor, 'display_position': args.display_position} if WINDOWS else {}
+        extra = {'display_position': args.display_position}
+        if WINDOWS:
+            extra['monitor'] = args.monitor
         service.start(args.transport, args.address, args.display_mode, video, **extra)
     elif args.command == 'stop':
         service.stop()
@@ -72,7 +74,8 @@ def main():
                        receiver_id=args.receiver_id, display_position=args.display_position or 'right')
         else:
             from . import worker
-            worker.run(args.transport or 'usb', args.address or '', args.display_mode or 'extend', video)
+            worker.run(args.transport or 'usb', args.address or '', args.display_mode or 'extend', video,
+                       display_position=args.display_position or 'right')
     elif args.command == 'release':
         if WINDOWS:
             service.stop()

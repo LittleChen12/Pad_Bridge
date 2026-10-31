@@ -2,36 +2,28 @@
 """H.264 pipeline, decoder-aware scaling, and capture error recovery."""
 import logging
 import time
+import threading
 from odx11 import pipeline
 from . import x11_capture
+from .stream_metrics import FrameTimings, RollingStatistics
+from .encoding_profiles import ENCODERS, conversion_fragment, encoder_fragment
 log = logging.getLogger('padbridge.encoding')
 
 
-def encoder_fragment(name, fps, bitrate=24000, wifi=False):
-    gop = fps * (10 if wifi else 2)
-    if name == 'nvh264enc':
-        return (f'nvh264enc preset=low-latency-hp rc-mode=cbr bitrate={bitrate} '
-                f'zerolatency=true bframes=0 rc-lookahead=0 gop-size={gop}'
-                + (f' strict-gop=true vbv-buffer-size={max(256, bitrate // 20)}' if wifi else ''))
-    if name == 'x264enc':
-        return (f'x264enc tune=zerolatency speed-preset=ultrafast bitrate={bitrate} '
-                f'bframes=0 key-int-max={gop} byte-stream=true'
-                + (' vbv-buf-capacity=50' if wifi else ''))
-    raise ValueError(name)
-
-
-def select_encoder():
+def select_encoder(allow_cuda=True):
     x11_capture.init_threads()
     pipeline.init()
     Gst = pipeline.Gst
-    for name in ('nvh264enc', 'x264enc'):
+    for name in ENCODERS:
+        if name == 'nvcudah264enc' and not allow_cuda:
+            continue
         if not Gst.ElementFactory.find(name):
             continue
         probe = None
         try:
             probe = Gst.parse_launch(
-                'videotestsrc num-buffers=3 ! video/x-raw,width=1280,height=720,framerate=60/1 '
-                '! videoconvert ! video/x-raw,format=NV12 ! ' + encoder_fragment(name, 60) +
+                'videotestsrc num-buffers=3 ! video/x-raw,format=BGRx,width=1280,height=720,framerate=60/1 '
+                '! ' + conversion_fragment(name) + ' ! ' + encoder_fragment(name, 60) +
                 ' ! h264parse ! fakesink sync=false')
             probe.set_state(Gst.State.PLAYING)
             result = probe.get_bus().timed_pop_filtered(
@@ -50,7 +42,7 @@ def select_encoder():
 
 
 class NativePipeline(pipeline.Pipeline):
-    # _build follows the upstream Pipeline hooks; framing and backpressure stay upstream.
+    # Two admitted frames at most, including the one awaiting socket delivery.
     encoder = 'x264enc'
     bitrate_kbps = 24000
     transport = 'usb'
@@ -63,6 +55,12 @@ class NativePipeline(pipeline.Pipeline):
         self.on_ready = None  # Optional session callback, always invoked on the main loop.
         self._ready_notice = None
         self._ready_sent = False
+        self._timings = FrameTimings()
+        self._statistics = RollingStatistics()
+        self._current_timings = {}
+        self._send_started = None
+        self._slots = threading.BoundedSemaphore(2)
+        self._backpressure_drops = 0
         super().__init__(*args, **kwargs)
 
     def _build(self):
@@ -79,35 +77,50 @@ class NativePipeline(pipeline.Pipeline):
         self.stream_config = {'type': 'streamConfig', 'codec': 'h264',
                               'width': self.stream_size[0], 'height': self.stream_size[1],
                               'framesPerSecond': fps}
-        scale = ''
-        raw_caps = 'video/x-raw,format=NV12'
-        if self.output_size and self.output_size != (w, h):
-            sw, sh = self.output_size
-            scale = 'videoscale ! '
-            raw_caps += f',width={sw},height={sh},pixel-aspect-ratio=1/1'
+        size = self.output_size if self.output_size != (w, h) else None
         desc = (
-            f'ximagesrc display-name="{xname}" startx={x} starty={y} '
+            f'ximagesrc name=capture display-name="{xname}" startx={x} starty={y} '
             f'endx={x+w-1} endy={y+h-1} use-damage=false show-pointer=false '
             f'! video/x-raw,framerate={fps}/1 '
             '! queue name=q leaky=downstream max-size-buffers=1 max-size-bytes=0 max-size-time=0 '
-            '! videoconvert name=conv n-threads=2 ! ' + scale + raw_caps + ' ! '
+            '! ' + conversion_fragment(self.encoder, size) + ' ! '
             + encoder_fragment(self.encoder, fps, self.bitrate_kbps, self.transport == 'wifi') +
             ' ! h264parse config-interval=-1 ! video/x-h264,stream-format=byte-stream,alignment=au '
-            '! appsink name=out sync=false emit-signals=true max-buffers=0 drop=false')
-        self.gpu = False  # Conversion is CPU; H.264 encoding uses NVENC when available.
-        log.info('串流：%dx%d @ %d fps，%s，目标码率 %.1f Mbps（采集 %dx%d）',
-                 *self.stream_size, fps, self.encoder, self.bitrate_kbps / 1000, w, h)
+            '! queue name=delivery max-size-buffers=1 max-size-bytes=0 max-size-time=0 '
+            '! appsink name=out sync=false emit-signals=true max-buffers=1 drop=false')
+        # The upstream start() fallback is VAAPI-specific. Selection above probes
+        # the complete CUDA path; do not enter that unrelated fallback here.
+        self.gpu = False
+        log.info('串流：%dx%d @ %d fps，%s，%s 转色，目标码率 %.1f Mbps（采集 %dx%d）',
+                 *self.stream_size, fps, self.encoder,
+                 'CUDA' if self.encoder == 'nvcudah264enc' else 'CPU', self.bitrate_kbps / 1000, w, h)
         self.pipe = Gst.parse_launch(desc)
         self.sink = self.pipe.get_by_name('out')
         self.sink.connect('new-sample', self._on_sample)
         self._count(self.pipe.get_by_name('q').get_static_pad('sink'), '_captured')
+        self.pipe.get_by_name('capture').get_static_pad('src').add_probe(Gst.PadProbeType.BUFFER, self._capture_probe)
         self.pipe.get_by_name('conv').get_static_pad('sink').add_probe(Gst.PadProbeType.BUFFER, self._gate)
+        for pad_name, stage in (('sink', 'encoding'), ('src', 'encoded')):
+            self.pipe.get_by_name('enc').get_static_pad(pad_name).add_probe(
+                Gst.PadProbeType.BUFFER, self._stage_probe, stage)
         bus = self.pipe.get_bus()
         bus.add_signal_watch()
         bus.connect('message::error', self._on_bus_error)
 
+    def start(self):
+        # The base implementation's conversion log/fallback refers to VAAPI.
+        if self.pipe.set_state(pipeline.Gst.State.PLAYING) == pipeline.Gst.StateChangeReturn.FAILURE:
+            raise RuntimeError('截图或视频编码管线未能启动。')
+
     def _on_sample(self, sink):
-        result = super()._on_sample(sink)
+        previous = self.frames
+        try:
+            result = super()._on_sample(sink)
+        finally:
+            self._slots.release()
+        if self.frames > previous and self._send_started is not None:
+            self._statistics.record(**self._current_timings,
+                                    send=(time.monotonic()-self._send_started)*1000)
         if self.frames and not self._ready_sent and not self._stopped:
             from gi.repository import GLib
             self._ready_sent = True
@@ -131,7 +144,46 @@ class NativePipeline(pipeline.Pipeline):
                 self._capture_failed = True
                 self._capture_notice = GLib.idle_add(self._capture_error)
             return pipeline.Gst.PadProbeReturn.DROP
-        return super()._gate(pad, info)
+        key = self._running_time(pad, info.get_buffer())
+        if not self._slots.acquire(blocking=False):
+            self._backpressure_drops += 1
+            self._timings.discard(key)
+            return pipeline.Gst.PadProbeReturn.DROP
+        result = super()._gate(pad, info)
+        if result == pipeline.Gst.PadProbeReturn.DROP:
+            self._slots.release()
+            self._timings.discard(key)
+        else:
+            self._timings.stage(key, 'admitted')
+        return result
+
+    def _running_time(self, pad, buf):
+        Gst = pipeline.Gst
+        event = pad.get_sticky_event(Gst.EventType.SEGMENT, 0)
+        if event is None or buf.pts == Gst.CLOCK_TIME_NONE:
+            return None
+        value = event.parse_segment().to_running_time(Gst.Format.TIME, buf.pts)
+        return None if value == Gst.CLOCK_TIME_NONE else value
+
+    def _capture_probe(self, pad, info):
+        key = self._running_time(pad, info.get_buffer())
+        clock = self.pipe.get_clock()
+        if key is not None and clock is not None:
+            elapsed = (clock.get_time()-self.pipe.get_base_time()-key)/pipeline.Gst.MSECOND
+            self._timings.capture(key, elapsed)
+        return pipeline.Gst.PadProbeReturn.OK
+
+    def _stage_probe(self, pad, info, name):
+        self._timings.stage(self._running_time(pad, info.get_buffer()), name)
+        return pipeline.Gst.PadProbeReturn.OK
+
+    def statistics(self):
+        fps, timings = self._statistics.snapshot()
+        return {'actual_fps': fps, 'timings_ms': timings, 'encoder': self.encoder,
+                'encoder_input_format': 'NV12',
+                'conversion_backend': 'cuda' if self.encoder == 'nvcudah264enc' else 'cpu',
+                'capture_backend': 'ximagesrc', 'frames_sent': self.frames,
+                'backpressure_drops': self._backpressure_drops, 'max_inflight_frames': 2}
 
     def _capture_error(self):
         self._capture_notice = None
@@ -155,6 +207,9 @@ class NativePipeline(pipeline.Pipeline):
         # NVENC adds a large PTS offset to allow DTS reordering. The segment maps
         # that timestamp back to pipeline running time; raw PTS is not elapsed time.
         Gst = pipeline.Gst
+        key = self._running_time(self.sink.get_static_pad('sink'), buf)
+        self._current_timings = self._timings.finish(key)
+        self._send_started = time.monotonic()
         clock = self.pipe.get_clock()
         event = self.sink.get_static_pad('sink').get_sticky_event(Gst.EventType.SEGMENT, 0)
         if clock is None or event is None or buf.pts == Gst.CLOCK_TIME_NONE:

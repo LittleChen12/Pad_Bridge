@@ -139,6 +139,7 @@ class VideoOptionsTests(unittest.TestCase):
             self.assertEqual(prefs['display_mode'], 'extend')
             self.assertEqual(prefs['video_options'], VideoOptions().to_dict())
             self.assertEqual(prefs['address'], '192.0.2.42:9000')
+            self.assertEqual(prefs['display_position'], 'right')
 
     def test_mirror_launch_needs_no_connector_permission_and_passes_settings(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(preference_store, 'PREFERENCES', Path(folder)/'prefs.json'), \
@@ -151,6 +152,19 @@ class VideoOptionsTests(unittest.TestCase):
             for flag, value in (('--display-mode','mirror'),('--resolution','1920x1440'),('--fps','30'),('--bitrate','8')):
                 self.assertEqual(command[command.index(flag)+1], value)
             self.assertEqual(app.preferences()['video_options'], video.to_dict())
+
+    def test_left_position_is_saved_and_passed_only_after_validation(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(preference_store, 'PREFERENCES', Path(folder)/'prefs.json'), \
+                patch.object(app, 'active', return_value=False), patch.object(app, 'authorize') as auth, \
+                patch.object(app.subprocess, 'run') as run:
+            with self.assertRaises(ValueError):
+                app.start('usb', display_position='above')
+            auth.assert_not_called()
+            run.assert_not_called()
+            app.start('usb', display_position='left')
+            command = run.call_args.args[0]
+            self.assertEqual(command[command.index('--display-position')+1], 'left')
+            self.assertEqual(app.preferences()['display_position'], 'left')
 
     def test_changing_running_parameters_requires_stop(self):
         with patch.object(app, 'active', return_value=True), patch.object(app, 'current_status', return_value={}), \

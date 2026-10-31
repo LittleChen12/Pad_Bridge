@@ -11,7 +11,7 @@ from .panels import ConnectionPanel, VideoPanel, card, label, page, styled
 class Window(Gtk.ApplicationWindow):
     def __init__(self, app, saved):
         super().__init__(application=app, title='PadBridge')
-        self.set_default_size(880, 690)
+        self.set_default_size(880, 820)
         self.set_size_request(760, 580)
         self.set_icon_from_file(str(ROOT / 'padbridge.svg'))
         styled(self, 'padbridge')
@@ -106,7 +106,10 @@ class Window(Gtk.ApplicationWindow):
             title = '镜像已连接' if mirror else '扩展屏已连接'
             size = facts.get('video_size') or (facts.get('monitor') or [])[:2]
             text = f'{size[0]} × {size[1]}' if len(size)==2 else '正在传送画面'
-            text += f' · {facts.get("fps_target",60)} FPS · {facts.get("bitrate_mbps",24):g} Mbps（目标）'
+            actual = facts.get('actual_fps')
+            text += (f' · {actual:.1f} FPS' if isinstance(actual, (int, float)) else
+                     f' · 目标 {facts.get("fps_target",60)} FPS')
+            text += f' · 目标 {facts.get("bitrate_mbps",24):g} Mbps'
             if mirror:
                 text += '\n保留主屏设置，iPad 等比显示'
         else:

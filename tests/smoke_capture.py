@@ -14,7 +14,8 @@ from padbridge_app.encoding import NativePipeline, select_encoder
 from odx11 import config, annexb
 from odx11.display import Geometry
 
-NativePipeline.encoder = select_encoder()
+NativePipeline.encoder = (sys.argv[sys.argv.index('--encoder')+1] if '--encoder' in sys.argv
+                          else select_encoder())
 if '--wifi' in sys.argv:
     NativePipeline.transport = 'wifi'
     NativePipeline.bitrate_kbps = 10000
@@ -42,6 +43,8 @@ def validate_frame(data, keyframe, capture_ms):
 def receive(data, keyframe, capture_ms):
     try:
         validate_frame(data, keyframe, capture_ms)
+        if '--slow-send' in sys.argv:
+            time.sleep(.08)
     except Exception as exc:
         errors.append(str(exc))
         GLib.idle_add(lambda: (loop.quit(), False)[1])
@@ -56,12 +59,16 @@ p = NativePipeline(Geometry(0, 0, 160, 120), cfg.video, os.environ.get('DISPLAY'
 p.on_ready = lambda: ready.append((threading.get_ident(), len(frames)))
 try:
     p.start()
+    GLib.timeout_add(500, lambda: (p.force_idr(), False)[1])
     GLib.timeout_add_seconds(2, lambda: (loop.quit(), False)[1])
     loop.run()
 finally:
     p.stop()
 assert not errors, errors
-assert len(frames) >= 15 and sum(frames) >= 1, (len(frames), sum(frames))
+assert len(frames) >= 15 and sum(frames) >= 2, (len(frames), sum(frames))
+if '--slow-send' in sys.argv:
+    assert p.statistics()['backpressure_drops'] > 0
 assert len(ready) == 1 and ready[0][0] == main_thread and ready[0][1] > 0, ready
-print(json.dumps({'frames': len(frames), 'keyframes': sum(frames),
+print(json.dumps({'encoder': NativePipeline.encoder, 'frames': len(frames), 'keyframes': sum(frames),
+                  'backpressure_drops': p.statistics()['backpressure_drops'],
                   'capture_to_callback_ms': [round(min(delays), 1), round(max(delays), 1)]}))

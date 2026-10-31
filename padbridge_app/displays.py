@@ -8,7 +8,17 @@ import subprocess
 from odx11 import display
 from .paths import MARKER, RUNTIME
 from .video import mirror_size
+from .display_layout import initial_layout, restore_positions
 log = logging.getLogger('padbridge.display')
+
+
+def record_ownership(data):
+    temporary = MARKER.with_suffix('.tmp')
+    try:
+        temporary.write_text(json.dumps(data), encoding='utf-8')
+        temporary.replace(MARKER)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def owned_connector():
@@ -67,12 +77,17 @@ def panel_mode(panel_w, panel_h, divisor, override=None):
 
 
 class HybridDisplay(display.VirtualDisplay):
-    def __init__(self, cfg, connector, resolution=None):
+    def __init__(self, cfg, connector, resolution=None, position='right'):
+        if position not in ('left', 'right'):
+            raise ValueError('副屏位置必须为左侧或右侧。')
         super().__init__(cfg)
         self.port = connector
         self.connector = connector.name.split('-', 1)[1]
         self.output = resolve_output(connector)
         self.resolution = resolution
+        self.position = position
+        self.layout_record = {}
+        self._automatic_geometry = None
 
     def _force(self, value):
         # Only this instance's connector is ever changed; no sweeping HDMI cleanup.
@@ -80,7 +95,7 @@ class HybridDisplay(display.VirtualDisplay):
             if (self.port / 'edid').read_bytes():
                 raise RuntimeError('这个接口刚接入了真实显示器，已取消创建副屏。')
             RUNTIME.mkdir(mode=0o700, parents=True, exist_ok=True)
-            MARKER.write_text(json.dumps({'connector': self.port.name, 'output': self.output}))
+            record_ownership({'connector': self.port.name, 'output': self.output})
         (self.port / 'status').write_text(value)
 
     def attach(self, panel_w, panel_h, device_cfg, limits=None):
@@ -102,16 +117,31 @@ class HybridDisplay(display.VirtualDisplay):
             self._wait_until(lambda: self.geometry() is not None, self.cfg.settle_timeout_s)
         main = self.main_geometry()
         g = self.geometry()
+        enabled = {info.name: list(self._crtc_geometry(info.name)) for _, info, _ in self._outputs()
+                   if info.name != self.output and info.crtc}
+        automatic = (g is not None and g == self._automatic_geometry and
+                     enabled == self.layout_record.get('layout_applied'))
         # GNOME may auto-enable a hotplugged output at 0,0; explicitly extend it.
-        if first or g is None:
-            enabled = [self._crtc_geometry(info.name) for _, info, _ in self._outputs()
-                       if info.name != self.output and info.crtc]
-            x = max((other.x + other.w for other in enabled if other), default=main.x + main.w)
-            y = main.y
+        positions = []
+        if first or g is None or (automatic and self.position == 'left'):
+            before, primary = enabled, main
+            if automatic:
+                # A rotation changes the width of a left screen. Rebase from our
+                # original arrangement; do not accumulate origin translations.
+                before = self.layout_record['layout_before']
+                primary = next(before[name] for name, current in enabled.items()
+                               if current == list(main))
+            (x, y), moved = initial_layout(before, primary, ow, self.position)
+            self.layout_record = {'connector': self.port.name, 'output': self.output,
+                                  'layout_before': before, 'layout_applied': moved}
+            record_ownership(self.layout_record)
+            for output, position in moved.items():
+                if position != enabled[output]:
+                    positions += ['--output', output, '--pos', f'{position[0]}x{position[1]}']
         else:
             x, y = g.x, g.y
         self._xrandr('--output', self.output, '--mode', name, '--rotate', rotation,
-                     '--pos', f'{x}x{y}')
+                     '--pos', f'{x}x{y}', *positions)
         g = self.geometry()
         if g is None or (g.w, g.h) != (ow, oh):
             raise RuntimeError(f'副屏尺寸设置失败：需要 {ow}×{oh}，实际 {g}')
@@ -119,11 +149,16 @@ class HybridDisplay(display.VirtualDisplay):
             self._xrandr('--delmode', self.output, old_mode, check=False)
             self._xrandr('--rmmode', old_mode, check=False)
         self.attached = True
+        self._automatic_geometry = g if first or automatic else None
         log.info('副屏已建立：%s %dx%d+%d+%d', self.output, g.w, g.h, g.x, g.y)
         return g
 
     def teardown(self):
         super().teardown()
+        try:
+            restore_positions(self.layout_record, self.output)
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            log.warning('无法恢复桌面原点：%s', exc)
         if self.port.exists() and (self.port / 'status').read_text().strip() == 'disconnected':
             MARKER.unlink(missing_ok=True)
 
@@ -174,6 +209,8 @@ def release():
         MARKER.unlink(missing_ok=True)
         return
     output = resolve_output(port)
+    record = json.loads(MARKER.read_text())
     (port / 'status').write_text('detect')
     subprocess.run(['xrandr', '--output', output, '--off'], capture_output=True, timeout=10)
+    restore_positions(record, output)
     MARKER.unlink(missing_ok=True)

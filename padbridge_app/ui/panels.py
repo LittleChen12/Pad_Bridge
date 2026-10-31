@@ -64,6 +64,13 @@ class ConnectionPanel:
         self.controls.pack_start(self.mode, False, False, 0)
         self.mode_hint = label('镜像请在此处切换，系统“镜像”暂不支持。', 'hint')
         self.controls.pack_start(self.mode_hint, False, False, 0)
+        self.position_row = Gtk.Box(spacing=25)
+        self.position_row.pack_start(label('副屏位置', 'field-label'), False, False, 0)
+        self.position = Choice((('left', '左侧'), ('right', '右侧')),
+                               saved.get('display_position', 'right'), changed)
+        self.position_row.pack_start(self.position, True, True, 0)
+        self.position_row.set_no_show_all(True)
+        self.controls.pack_start(self.position_row, False, False, 0)
         self.controls.pack_start(Gtk.Separator(), False, False, 0)
         row = Gtk.Box(spacing=25)
         row.pack_start(label('连接方式', 'field-label'), False, False, 0)
@@ -129,6 +136,11 @@ class ConnectionPanel:
         else:
             self.network.hide()
         self.arrange_button.set_visible(self.mode.get() == 'extend')
+        if self.mode.get() == 'extend':
+            self.position_row.show()
+            self.position_row.foreach(lambda child: child.show_all())
+        else:
+            self.position_row.hide()
 
 
 class VideoPanel:

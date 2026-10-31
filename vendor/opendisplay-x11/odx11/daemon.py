@@ -65,6 +65,7 @@ class Session:
         self.on_hello = on_hello
         self.call_later = call_later
         self.send = send
+        self.send_video = None           # optional ordered, asynchronous socket adapter
         self.display = display
         self.injector = injector
         self.make_pipeline = make_pipeline
@@ -86,6 +87,7 @@ class Session:
         self._cancel_settle = None           # one late frame after the screen goes quiet
         self._settled = True                 # the settle frame for the last change was sent
         self._fps = 60
+        self.receiver_stats = {}
 
     # --- inbound ---------------------------------------------------------------
     def on_payload(self, payload: bytes):
@@ -324,6 +326,8 @@ class Session:
             self.pipeline.force_idr()
 
     def _on_stats(self, msg):
+        self.receiver_stats = {str(k)[:64]: v for k, v in list(msg.items())[:32]
+                               if type(v) is bool or (type(v) in (int, float) and -1e12 < v < 1e12)}
         log.info("PHONE-STATS %s", {k: v for k, v in msg.items() if k != "type"})
 
     def _on_sleeping(self, msg):
@@ -337,7 +341,10 @@ class Session:
         # Runs on the streaming thread: no X calls here. A failed send ends the session;
         # re-raising tells the pipeline to stop.
         try:
-            self.send(protocol.encode_video(au, cap_ms, self.clock() if cap_ms is not None else None))
+            if self.send_video is not None:
+                self.send_video(au, cap_ms)
+            else:
+                self.send(protocol.encode_video(au, cap_ms, self.clock() if cap_ms is not None else None))
         except OSError as e:
             self.end(f"send failed: {e}", GRACE)
             raise
@@ -793,6 +800,16 @@ def facts(daemon, display) -> dict:
         if hasattr(session.pipeline, "stream_size"):
             out["video_size"] = list(session.pipeline.stream_size)
             out["fps_target"] = session.pipeline.target_fps
+        statistics = getattr(session.pipeline, "statistics", None)
+        if callable(statistics):
+            extra = statistics()
+            if isinstance(extra, dict):
+                out.update(extra)
+        if session.receiver_stats:
+            out["receiver_stats"] = session.receiver_stats
+        send_statistics = getattr(daemon.conn, "statistics", None)
+        if callable(send_statistics):
+            out.setdefault("timings_ms", {}).update(send_statistics())
     return out
 
 
@@ -845,7 +862,7 @@ def apply_config(cfg, new, daemon, injector) -> str:
 
 
 def run(cfg, display, injector, make_pipeline, tcp=None, udid=None, config_path=None,
-        prepare_socket=None) -> bool:
+        prepare_socket=None, statistics_interval=0, connection_factory=None) -> bool:
     """The daemon's main loop: until SIGINT/SIGTERM, or a package upgrade (returns True: the
     caller exits with upgrade.EX_RESTART so systemd starts the new version). `tcp` = (host,
     port) dials a receiver directly as an always-attached device (tools/fake_receiver.py)."""
@@ -880,7 +897,7 @@ def run(cfg, display, injector, make_pipeline, tcp=None, udid=None, config_path=
         # PadBridge extension: configure per-stream buffering without global socket patches.
         if prepare_socket is not None:
             prepare_socket(sock)
-        return Connection(cfg, sock, display, injector, make_pipeline, on_end, on_hello,
+        return (connection_factory or Connection)(cfg, sock, display, injector, make_pipeline, on_end, on_hello,
                           on_change=schedule_publish, cursor_source=activity)
 
     daemon = Daemon(cfg, dial, display, open_connection, glib_call_later)
@@ -961,6 +978,12 @@ def run(cfg, display, injector, make_pipeline, tcp=None, udid=None, config_path=
     if activity:
         watches.append(GLib.io_add_watch(activity.fileno(), GLib.PRIORITY_DEFAULT,
                                          GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR, on_activity))
+    if statistics_interval > 0:
+        def publish_statistics():
+            if daemon.conn is not None and daemon.conn.session.pipeline is not None:
+                schedule_publish()
+            return GLib.SOURCE_CONTINUE
+        watches.append(GLib.timeout_add(max(250, int(statistics_interval*1000)), publish_statistics))
     watcher = None
     if tcp:
         GLib.idle_add(lambda: daemon.on_attached("tcp", f"{tcp[0]}:{tcp[1]}") and False)

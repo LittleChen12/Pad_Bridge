@@ -11,15 +11,18 @@ from .displays import release, choose_connector, HybridDisplay, MirrorDisplay
 from .encoding import NativePipeline, select_encoder
 from .paths import RUNTIME, CONFIG, CONNECTION
 from .video import VideoOptions
+from .stream_sender import connection_factory
 log = logging.getLogger('padbridge.worker')
 
 
-def run(transport='usb', address='', display_mode='extend', video=None):
+def run(transport='usb', address='', display_mode='extend', video=None, display_position='right'):
     if transport not in ('usb', 'wifi'):
         raise ValueError('连接方式必须为 USB 或 Wi-Fi。')
     if display_mode not in ('extend', 'mirror'):
         raise ValueError('显示模式必须为扩展或镜像。')
     video = video or VideoOptions()
+    if display_position not in ('left', 'right'):
+        raise ValueError('副屏位置必须为左侧或右侧。')
     tcp = network.parse_endpoint(address) if transport == 'wifi' else None
     if os.environ.get('XDG_SESSION_TYPE', 'x11') != 'x11':
         raise RuntimeError('当前版本需要 Ubuntu on Xorg 会话。')
@@ -42,14 +45,15 @@ def run(transport='usb', address='', display_mode='extend', video=None):
         network.probe(tcp)
     NativePipeline.bitrate_kbps = video.bitrate(transport)
     NativePipeline.transport = transport
-    NativePipeline.encoder = select_encoder()
+    NativePipeline.encoder = select_encoder(allow_cuda=cfg.video.convert != 'cpu')
     CONNECTION.write_text(json.dumps({'pid': os.getpid(), 'transport': transport,
                                       'display_mode': display_mode,
+                                      'display_position': display_position,
                                       'video_options': video.to_dict(),
                                       'address': network.format_endpoint(*tcp) if tcp else '',
                                       'bitrate_mbps': NativePipeline.bitrate_kbps / 1000}))
     screen = (MirrorDisplay(cfg.display, video.size) if display_mode == 'mirror'
-              else HybridDisplay(cfg.display, connector, video.size))
+              else HybridDisplay(cfg.display, connector, video.size, display_position))
     atexit.register(screen.teardown)
     try:
         injector = odinput.Injector(cfg.input)
@@ -60,7 +64,8 @@ def run(transport='usb', address='', display_mode='extend', video=None):
         log.info('连接方式：%s%s', transport, f' {network.format_endpoint(*tcp)}' if tcp else '')
         # GUI controls are a per-run snapshot. Restart explicitly to apply changes.
         daemon.run(cfg, screen, injector, make_pipeline, tcp=tcp,
-                   prepare_socket=network.configure_video_socket if tcp else None)
+                   prepare_socket=network.configure_video_socket if tcp else None,
+                   statistics_interval=1, connection_factory=connection_factory)
     finally:
         screen.teardown()
         CONNECTION.unlink(missing_ok=True)

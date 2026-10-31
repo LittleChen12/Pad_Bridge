@@ -7,8 +7,8 @@ iPad 端使用 [OpenDisplay](https://apps.apple.com/app/id6780264891)（Philip P
 [下载最新版本](https://github.com/LittleChen12/Pad_Bridge/releases/latest) ·
 [Windows 11 使用说明](docs/windows.md) · [开发与构建](CONTRIBUTING.md) · [0.3.0 发布说明](docs/releases/v0.3.0.md)
 
-本轮 Windows 迭代的改动、实现方式与实测数据见 [优化记录](docs/windows-optimization.md)；
-切回 Ubuntu 接着开发见 [Linux 升级交接](docs/linux-upgrade.md)。0.3.0 当前为开发版本，
+本轮实现与实测数据见 [Windows 优化记录](docs/windows-optimization.md) 和
+[Linux 优化记录](docs/linux-optimization.md)。0.3.0 当前为开发版本，
 分支 CI 产物与已发布的 GitHub Release 分开；仅推送版本标签才发布正式安装包。
 
 ## Windows 11
@@ -46,7 +46,8 @@ Ubuntu 默认使用 Wayland 的电脑，需要在登录界面选择 **Ubuntu on 
 - **镜像**：读取现有主屏，不创建虚拟输出，不改主屏分辨率、刷新率或布局。
 - **扩展**：需要 Intel / AMD 驱动支持的空闲 HDMI 接口；不是所有电脑都具备这个条件。
   第一次启动时通过系统认证，仅临时授予本次开机的接口访问权限；用户需属于 plugdev 组。
-- **编码**：有可用的 NVIDIA NVENC 时使用硬件编码，否则尝试 x264 软件编码。
+- **编码**：优先使用经过启动自检的 CUDA 转色/缩放和 NVENC 编码；不可用时回退 CPU 转色加
+  NVENC，再尝试 x264 软件编码。无需安装 Windows 的 PyAV 或驱动组件。
   没有 NVIDIA 显卡也可尝试运行，但高分辨率和帧率下的 CPU 性能需要实测。
 - 托盘需要系统支持 AppIndicator / StatusNotifier。Ubuntu 默认的 AppIndicators 扩展可用。
 
@@ -63,7 +64,9 @@ Wi-Fi 需要同一局域网，并允许 OpenDisplay 的“本地网络”权限�
 自动发现使用 Avahi / Bonjour，不扫描整个网段；手动地址支持 IPv4、IPv6 和 .local。
 
 **镜像必须在 PadBridge 中切换。系统设置里的“镜像”不是支持路径。**
-扩展时可通过“排列屏幕”调整布局。镜像时保留电脑显示设置，iPad 按比例显示完整主屏，
+扩展可选择副屏默认放在整个桌面的左侧或右侧，与主屏顶部对齐；当前连接中可通过
+“排列屏幕”手动调整布局。左侧扩展会按 X11 要求平移桌面原点，保留物理屏幕的尺寸、刷新率和相对排列。
+镜像时保留电脑显示设置，iPad 按比例显示完整主屏，
 屏幕比例不同时留黑边。iPad 旋转不会改变电脑主屏方向。
 
 ### 画面参数
@@ -77,6 +80,7 @@ Wi-Fi 需要同一局域网，并允许 OpenDisplay 的“本地网络”权限�
 - 自动码率：USB 24 Mbps；Wi-Fi 10 Mbps。码率、帧率都是目标值，实际受内容和设备限制。
 - 镜像会遵守接收端解码尺寸和吞吐上限；必要时只缩放传输的视频。
 - 保持持续采集，不做静止画面自动降帧。
+- 状态卡显示最近两秒的实际发送 FPS；目标帧率仍在画面设置中，网络波动可能使实际值降低。
 
 ### 关闭与退出
 
@@ -99,6 +103,7 @@ USB 拔线会收回扩展屏；Wi-Fi 连接不依赖数据线。正常连接中�
 padbridge ui
 padbridge start --display-mode mirror --transport usb
 padbridge start --display-mode extend --transport wifi --address 192.168.8.123
+padbridge start --display-mode extend --display-position left --transport usb
 padbridge start --resolution 1920x1440 --fps 30 --bitrate 8
 padbridge stop
 padbridge status
@@ -108,6 +113,7 @@ journalctl --user -u padbridge.service -f
 
 未指定的启动参数使用上次保存设置。`--resolution native` 与 `--bitrate 0` 恢复自动选项。
 用户设置位于 `~/.config/padbridge/connection.json`，缓存位于 `~/.cache/padbridge/`。
+`status` 同时提供转色/编码后端、各阶段平均/P95 耗时、最长帧间隔及接收端统计。
 卸载使用 `sudo apt remove padbridge`；卸载前请从托盘退出。
 
 ## 开发与模块
@@ -121,8 +127,9 @@ journalctl --user -u padbridge.service -f
 | `padbridge_app/cli.py` | 命令行入口 |
 | `service.py`、`preferences.py` | 工作进程生命周期、状态、原子保存设置 |
 | `worker.py` | 串流进程装配 |
-| `displays.py` | 只读镜像、虚拟扩展屏创建与回收 |
-| `encoding.py`、`x11_capture.py` | 编码、缩放、截图异常保护 |
+| `displays.py`、`display_layout.py` | 只读镜像、扩展屏创建、左右布局与回收 |
+| `encoding.py`、`encoding_profiles.py`、`x11_capture.py` | 管线、按插件能力选择转色/编码参数、截图保护 |
+| `stream_sender.py`、`stream_metrics.py` | 有界顺序发送、完成帧与阶段耗时统计 |
 | `network.py` | Bonjour 搜索、握手、TCP 缓冲 |
 | `video.py` | 参数模型与边界校验 |
 | `ui/application.py`、`ui/window.py` | 异步界面行为与窗口布局 |
@@ -157,5 +164,5 @@ Wi-Fi 使用原生 OpenDisplay TCP 协议，当前不加密且没有身份认证
 GPL-3.0-or-later，保留在 `vendor/opendisplay-x11/`，上游提交
 `0301158192212c5aa7ad46d5901048251a46e936`。本地代码同样采用 GPL-3.0-or-later。
 来源、保留范围和上游补丁见 [vendor/README.md](vendor/README.md)。
-上游会话循环的局部扩展包括：连接套接字设置、按实际编码尺寸计算解码预算、首帧前的视频配置与首帧后的状态同步、发布视频尺寸和目标帧率。
+上游会话循环的局部扩展包括：套接字/发送适配器、编码尺寸解码预算、首帧前后同步，以及串流期间发布统计。
 接收端属于 [OpenDisplay](https://opendisplay.app/) 项目，单独通过 App Store 安装。

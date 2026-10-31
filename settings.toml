@@ -12,7 +12,7 @@ settle_timeout_s = 2.0
 [video]
 preset = "custom"
 fps = 60
-convert = "cpu"
+convert = "auto"
 # GNOME draws some overlays outside XDamage. Keep the initial version continuous.
 idle_pause_s = 0.0
 change_tail_ms = 0

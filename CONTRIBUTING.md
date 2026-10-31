@@ -3,8 +3,8 @@
 开发与发布目标为 Ubuntu 24.04 amd64 / Xorg，以及 Windows 11 x64。
 Windows 环境、测试和便携构建见 [Windows 开发说明](docs/windows.md)。
 下文命令用于 Ubuntu；Windows 平台实现集中在 `padbridge_app/windows/`，不得在公共入口导入 X11/GTK。
-本轮实现与实测结论见 [Windows 优化记录](docs/windows-optimization.md)，后续 Linux 工作入口见
-[Linux 升级交接](docs/linux-upgrade.md)。跨平台共享改动应同时检查两套测试。
+本轮实现与实测结论见 [Windows 优化记录](docs/windows-optimization.md) 和
+[Linux 优化记录](docs/linux-optimization.md)。跨平台共享改动应同时检查两套测试。
 
 ## 获取源码
 
@@ -31,6 +31,8 @@ sudo apt install python3-gi python3-xlib python3-pytest desktop-file-utils
 `./test.sh` 在单元测试后额外执行编码器自检，需要可工作的 GStreamer 环境。
 `tests/smoke_capture.py` 和 `tests/isolated_capture.py` 是显式执行的实机测试；
 后者需要 Xephyr，仅修改离屏测试显示器。普通 CI 不控制真实屏幕或连接 iPad。
+`smoke_capture.py --slow-send` 验证发送阻塞时只跳过原始帧，仍能发送请求的 IDR；
+`--encoder x264enc` 可明确测试软件回退。测试用的延迟不影响普通运行路径。
 
 ## 构建与发布
 
