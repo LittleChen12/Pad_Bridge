@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import time
 import uuid
@@ -114,6 +115,12 @@ def smoke(setup, bundle):
                           'running_app_protection': 'passed', 'start_menu': 'passed',
                           'user_files_and_preferences': 'preserved'}))
     finally:
+        logs = Path(os.environ['LOCALAPPDATA']) / 'PadBridge/setup-logs'
+        if logs.is_dir():
+            shutil.copytree(logs, work / 'component-logs', dirs_exist_ok=True)
+            error = logs / 'components-error.log'
+            if error.is_file():
+                print(error.read_text(encoding='utf-8', errors='replace'))
         record = installed()
         if record and Path(record['InstallLocation']).resolve() == target.resolve() and uninstall:
             run_installer(uninstall)

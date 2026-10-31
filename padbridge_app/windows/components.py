@@ -7,7 +7,9 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
+import traceback
 
 import psutil
 
@@ -134,10 +136,32 @@ def run(result_path, check=False, apple_package=None, interactive=False, log_dir
     state = {'apple': 'unknown', 'display': 'unknown', 'restart': '0', 'error': ''}
     code = 1
     try:
+        if getattr(sys, 'frozen', False):
+            # The installer helper is a separate, short-lived process. PyInstaller
+            # otherwise passes its private DLL search directory to PowerShell/MSI.
+            # Reset it here, without changing the running UI or streaming worker.
+            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel.SetDllDirectoryW.argtypes = [ctypes.c_wchar_p]
+            if not kernel.SetDllDirectoryW(None):
+                raise ctypes.WinError(ctypes.get_last_error())
+            bundle = Path(sys._MEIPASS).resolve()
+            os.environ['PATH'] = os.pathsep.join(part for part in os.environ.get('PATH', '').split(os.pathsep)
+                                               if not Path(part).resolve().is_relative_to(bundle))
+        if check and apple_package:
+            verify_apple(apple_package)
         state = probe() if check else provision(apple_package, interactive, log_dir)
         code = 0
     except Exception as exc:
-        state['error'] = str(exc).replace('\r', ' ').replace('\n', ' ')
+        log = Path(log_dir or Path(result_path).parent) / 'components-error.log'
+        log.parent.mkdir(parents=True, exist_ok=True)
+        details = traceback.format_exc()
+        if isinstance(exc, subprocess.CalledProcessError):
+            details += f'\nstdout:\n{exc.stdout}\nstderr:\n{exc.stderr}\n'
+            message = 'Windows 组件配置命令执行失败'
+        else:
+            message = str(exc)
+        log.write_text(details, encoding='utf-8')
+        state['error'] = message.replace('\r', ' ').replace('\n', ' ') + f'。日志：{log}'
     parser = configparser.ConfigParser(interpolation=None)
     parser['components'] = state
     with Path(result_path).open('w', encoding='utf-16') as stream:

@@ -113,8 +113,9 @@ def test_error_reaches_unicode_installer_report(monkeypatch, tmp_path):
     assert c.run(output) == 1
     report = configparser.ConfigParser(interpolation=None)
     report.read(output, encoding='utf-16')
-    assert report['components']['error'] == '安装取消 请重试'
+    assert report['components']['error'].startswith('安装取消 请重试')
     assert report['components']['apple'] != 'ready'
+    assert '安装取消' in (tmp_path / 'components-error.log').read_text(encoding='utf-8')
 
 
 def test_readonly_probe_works_without_connected_ipad(monkeypatch):

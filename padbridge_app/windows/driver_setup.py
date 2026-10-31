@@ -176,6 +176,8 @@ def install(interactive=False, archive=None):
                 vd.detach(adapter)
             device_control.configure()
             vd.park_idle()
+            if reboot:
+                raise RestartRequired('驱动已安装，重启 Windows 后即可使用扩展屏幕。')
             return vd.INSTALL_DIR
         time.sleep(0.2)
     # The PnP device can already exist before a display adapter is enumerated

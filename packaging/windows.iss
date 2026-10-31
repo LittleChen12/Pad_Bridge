@@ -51,7 +51,7 @@ Name: "{group}\PadBridge"; Filename: "{app}\PadBridge.exe"; Parameters: "ui"; Wo
 Name: "{autodesktop}\PadBridge"; Filename: "{app}\PadBridge.exe"; Parameters: "ui"; WorkingDir: "{app}"; Tasks: desktopicon; AppUserModelID: "LittleChen12.PadBridge"
 
 [Run]
-Filename: "{app}\PadBridge.exe"; Parameters: "ui"; WorkingDir: "{app}"; Description: "{cm:LaunchProgram,PadBridge}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\PadBridge.exe"; Parameters: "ui"; WorkingDir: "{app}"; Description: "{cm:LaunchProgram,PadBridge}"; Flags: nowait postinstall skipifsilent; Check: CanLaunchApp
 
 [Messages]
 en.SetupAppRunningError=PadBridge is running. Choose "Exit PadBridge" from its tray or window menu, then retry setup.
@@ -84,6 +84,11 @@ procedure InitializeWizard;
 begin
   DownloadPage := CreateDownloadPage(CustomMessage('DownloadTitle'),
     CustomMessage('DownloadDescription'), nil);
+end;
+
+function CanLaunchApp: Boolean;
+begin
+  Result := not ComponentRestart;
 end;
 
 function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfoInfo,
