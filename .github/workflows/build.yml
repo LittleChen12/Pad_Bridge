@@ -61,7 +61,10 @@ jobs:
       - name: Protocol, Windows backend and software encoder tests
         shell: pwsh
         run: .\test.ps1
-      - name: Build portable Windows application
+      - name: Prepare pinned installer compiler
+        shell: pwsh
+        run: .\packaging\bootstrap_inno.ps1
+      - name: Build Windows application and installer
         shell: pwsh
         run: .\.venv\Scripts\python.exe packaging\build_windows.py
       - name: Verify bundled dependencies and encoder
@@ -71,11 +74,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .\dist\PadBridge\PadBridge.exe encoder-test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify install, upgrade, uninstall and running-app protection
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe tests\windows\smoke_installer.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: padbridge-windows-${{ github.sha }}
           path: |
             dist/padbridge-*-windows-x64.zip
+            dist/padbridge-*-windows-x64-setup.exe
             dist/SHA256SUMS-windows
           if-no-files-found: error
           retention-days: 14
@@ -101,7 +108,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            dist/*.deb dist/*-source.tar.gz dist/*-windows-x64.zip dist/SHA256SUMS dist/SHA256SUMS-windows \
+            dist/*.deb dist/*-source.tar.gz dist/*-windows-x64.zip dist/*-windows-x64-setup.exe dist/SHA256SUMS dist/SHA256SUMS-windows \
             --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "PadBridge $GITHUB_REF_NAME" \
             --notes-file dist/RELEASE_NOTES.md

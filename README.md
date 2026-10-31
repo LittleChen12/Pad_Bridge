@@ -1,26 +1,30 @@
 # PadBridge
 
 通过 USB 或同一局域网 Wi-Fi，把 iPad 用作电脑的镜像屏或扩展屏。
-支持 Ubuntu/Xorg；0.3.0 新增 Windows 11 x64 后端。
+支持 Ubuntu/Xorg 和 Windows 11 x64；0.3.1 新增 Windows EXE 安装包。
 iPad 端使用 [OpenDisplay](https://apps.apple.com/app/id6780264891)（Philip Poloczek）。
 
 [下载最新版本](https://github.com/LittleChen12/Pad_Bridge/releases/latest) ·
-[Windows 11 使用说明](docs/windows.md) · [开发与构建](CONTRIBUTING.md) · [0.3.0 发布说明](docs/releases/v0.3.0.md)
+[Windows 11 使用说明](docs/windows.md) · [开发与构建](CONTRIBUTING.md) · [0.3.1 发布说明](docs/releases/v0.3.1.md)
 
 本轮实现与实测数据见 [Windows 优化记录](docs/windows-optimization.md) 和
-[Linux 优化记录](docs/linux-optimization.md)。**v0.3.0** 同时包含 Windows 11 支持与 Linux 性能优化。
+[Linux 优化记录](docs/linux-optimization.md)。**v0.3.1** 保留两端的功能与性能优化，补齐 Windows 安装体验。
 
 | 系统 | 下载 | 使用方式 |
 | --- | --- | --- |
-| Ubuntu 24.04 x86_64 / Xorg | [`.deb` 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.0/padbridge_0.3.0_amd64.deb) | 用 `apt install` 安装，从应用菜单启动 |
-| Windows 11 x64 | [便携 ZIP](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.0/padbridge-0.3.0-windows-x64.zip) | 完整解压后运行 `PadBridge/PadBridge.exe` |
+| Ubuntu 24.04 x86_64 / Xorg | [`.deb` 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.1/padbridge_0.3.1_amd64.deb) | 用 `apt install` 安装，从应用菜单启动 |
+| Windows 11 x64 | [EXE 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.1/padbridge-0.3.1-windows-x64-setup.exe) | 双击安装，从开始菜单启动；在“已安装的应用”中卸载 |
+| Windows 便携使用 | [ZIP 压缩包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.1/padbridge-0.3.1-windows-x64.zip) | 完整解压后运行 `PadBridge/PadBridge.exe` |
 
-[源码包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.0/padbridge-0.3.0-source.tar.gz)
-与 SHA-256 校验文件一并提供在 [v0.3.0 发布页](https://github.com/LittleChen12/Pad_Bridge/releases/tag/v0.3.0)。
+[源码包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.1/padbridge-0.3.1-source.tar.gz)
+与 SHA-256 校验文件一并提供在 [v0.3.1 发布页](https://github.com/LittleChen12/Pad_Bridge/releases/tag/v0.3.1)。
 
 ## Windows 11
 
-便携包完整解压后双击 `PadBridge.exe`。源码开发运行：
+下载 `padbridge-0.3.1-windows-x64-setup.exe`，双击按向导安装即可。
+默认安装到当前用户目录，自动创建开始菜单入口，可选桌面快捷方式；不需要另外安装 Python。
+升级前从托盘退出旧版，再运行新版安装包，连接和画面设置会保留。
+便携 ZIP 仍可完整解压使用。源码开发运行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1
@@ -42,13 +46,13 @@ Linux 安装包目标为 **Ubuntu 24.04、x86_64、Xorg 会话**。
 从 Releases 下载 `.deb` 后，在文件所在目录运行：
 
 ```bash
-sudo apt install ./padbridge_0.3.0_amd64.deb
+sudo apt install ./padbridge_0.3.1_amd64.deb
 ```
 
 安装后从应用菜单打开 **PadBridge**。安装包使用系统依赖，不包含设备 IP、用户设置或开发缓存。
 不设置开机启动、不更改启动参数、显卡驱动或 sudoers。
 Ubuntu 默认使用 Wayland 的电脑，需要在登录界面选择 **Ubuntu on Xorg**。
-其他 Ubuntu / Debian 版本、ARM 和 macOS 未作为本包的支持目标；Windows 使用独立便携包。
+其他 Ubuntu / Debian 版本、ARM 和 macOS 未作为本包的支持目标；Windows 使用独立安装包或便携包。
 
 - **镜像**：读取现有主屏，不创建虚拟输出，不改主屏分辨率、刷新率或布局。
 - **扩展**：需要 Intel / AMD 驱动支持的空闲 HDMI 接口；不是所有电脑都具备这个条件。
@@ -159,7 +163,7 @@ python3 packaging/build_deb.py
 回归测试覆盖协议 / 会话、PRIME 接口匹配、授权范围、参数迁移、解码上限和主屏不被修改。
 `tests/isolated_capture.py` 在离屏 Xephyr 中复现尺寸变化导致的截图错误，对照无保护与有保护的行为；
 不调整真实显示器。额外实机检查包括镜像、扩展、参数应用、托盘退出和闲置占用。
-构建输出为 `dist/padbridge_0.3.0_amd64.deb`。
+构建输出为 `dist/padbridge_0.3.1_amd64.deb`。
 
 ## 已知边界与来源
 

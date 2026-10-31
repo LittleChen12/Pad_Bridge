@@ -103,6 +103,10 @@ def main():
 
 def entrypoint():
     try:
+        if WINDOWS:
+            from .windows.installation import running_application
+            with running_application():
+                return main()
         return main()
     except Exception as exc:
         if not WINDOWS and len(sys.argv) > 1 and sys.argv[1] == 'run':

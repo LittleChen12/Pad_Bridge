@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Build a Windows x64 portable executable folder and ZIP, including source/licenses."""
+"""Build the Windows application, portable ZIP and setup EXE with source/licenses."""
 import hashlib
 import importlib.metadata
 import json
@@ -12,6 +12,8 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from padbridge_app import __version__
+from build_installer import compile_installer, compiler_path
+from windows_resources import resources
 
 
 def build():
@@ -20,8 +22,11 @@ def build():
     output = ROOT / 'dist'
     work = ROOT / 'build' / 'windows'
     work.mkdir(parents=True, exist_ok=True)
+    compiler = compiler_path()
+    icon, version_info = resources(ROOT, work, __version__)
     subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean',
                     '--name', 'PadBridge', '--onedir', '--console', '--hide-console', 'hide-early',
+                    '--icon', str(icon), '--version-file', str(version_info),
                     '--paths', str(ROOT / 'vendor/opendisplay-x11'),
                     '--collect-all', 'av', '--collect-all', 'zeroconf',
                     '--collect-all', 'dxcam', '--collect-all', 'winrt',
@@ -35,6 +40,7 @@ def build():
                     '--distpath', str(output), '--workpath', str(work),
                     '--specpath', str(work), str(ROOT / 'app.py')], check=True, cwd=ROOT)
     bundle = output / 'PadBridge'
+    shutil.copy2(icon, bundle / 'PadBridge.ico')
     shutil.copy2(ROOT / 'LICENSE', bundle / 'LICENSE')
     shutil.copytree(ROOT / 'docs', bundle / 'docs', dirs_exist_ok=True)
     shutil.copy2(ROOT / 'CONTRIBUTING.md', bundle / 'CONTRIBUTING.md')
@@ -56,6 +62,8 @@ def build():
         shutil.copytree(ROOT / name, source / name, ignore=ignore, dirs_exist_ok=True)
     third_party = bundle / 'third-party-licenses'
     third_party.mkdir(exist_ok=True)
+    (third_party / 'inno-setup').mkdir(exist_ok=True)
+    shutil.copy2(compiler.parent / 'License.txt', third_party / 'inno-setup/LICENSE.txt')
     versions = {}
     names = ['av', 'zeroconf', 'psutil', 'PySide6-Essentials', 'shiboken6', 'ifaddr',
              'pyinstaller', 'dxcam', 'numpy', 'comtypes', 'typing_extensions']
@@ -80,9 +88,12 @@ def build():
         'python': sys.version, 'dependencies': versions}, indent=2), encoding='utf-8')
     archive = Path(shutil.make_archive(str(output / f'padbridge-{__version__}-windows-x64'),
                                       'zip', root_dir=output, base_dir='PadBridge'))
-    checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
-    (output / 'SHA256SUMS-windows').write_text(f'{checksum}  {archive.name}\n', encoding='ascii')
+    installer = compile_installer(bundle, output)
+    checksums = ''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n'
+                        for path in (archive, installer))
+    (output / 'SHA256SUMS-windows').write_text(checksums, encoding='ascii')
     print(archive)
+    print(installer)
 
 
 if __name__ == '__main__':

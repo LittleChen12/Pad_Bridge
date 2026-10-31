@@ -1,7 +1,7 @@
 # 开发说明
 
 开发与发布目标为 Ubuntu 24.04 amd64 / Xorg，以及 Windows 11 x64。
-Windows 环境、测试和便携构建见 [Windows 开发说明](docs/windows.md)。
+Windows 环境、测试、安装器和便携构建见 [Windows 开发说明](docs/windows.md)。
 下文命令用于 Ubuntu；Windows 平台实现集中在 `padbridge_app/windows/`，不得在公共入口导入 X11/GTK。
 本轮实现与实测结论见 [Windows 优化记录](docs/windows-optimization.md) 和
 [Linux 优化记录](docs/linux-optimization.md)。跨平台共享改动应同时检查两套测试。
@@ -53,8 +53,13 @@ python3 packaging/build_release.py
 正式发布时，先确认各功能分支的提交都包含在发布候选中，再合入 `main`。
 在干净提交上构建、核对版本与发布说明，并确认 Ubuntu/Windows 检查通过。
 先推送 `main`，再单独推送指向同一提交的附注版本标签；标签流程通过后会发布
-`.deb`、Windows 便携 ZIP、对应源码和两份 SHA-256 文件。
+`.deb`、Windows 安装 EXE/便携 ZIP、对应源码和两份 SHA-256 文件。
 发布后从 Releases 下载产物核对校验值。已发布的标签和包不覆盖，有修正则递增版本。
+
+Windows 构建先运行 `packaging/bootstrap_inno.ps1` 准备固定版本的便携编译器，再运行
+`packaging/build_windows.py` 同时生成安装 EXE 和 ZIP。`packaging/windows.iss` 的 AppId
+须跨版本保持不变，以便 Windows 正确识别升级和卸载；安装/卸载仅管理应用自己的文件。
+更新 Windows 运行入口时保留 `windows/installation.py` 的进程存活标记，避免运行中覆盖文件。
 
 ## 代码边界
 

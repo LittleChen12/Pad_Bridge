@@ -1,11 +1,23 @@
 # Windows 11 使用与开发
 
-0.3.0 新增 Windows 11 x64 后端，保留 Ubuntu/Xorg 后端。
+0.3.0 新增 Windows 11 x64 后端；0.3.1 增加 EXE 安装版，保留 Ubuntu/Xorg 后端。
 
 ## 启动
 
-便携包：完整解压 `padbridge-0.3.0-windows-x64.zip`，双击 `PadBridge/PadBridge.exe`。
-保留同目录 `_internal` 文件夹。便携包包含 Python、Qt 和编码库，无需另外安装 Python。
+推荐下载 `padbridge-0.3.1-windows-x64-setup.exe`，双击打开简体中文/英文安装向导。
+默认安装到 `%LOCALAPPDATA%\Programs\PadBridge`，自动创建开始菜单入口，桌面快捷方式可选。
+Python、Qt 和编码库已经包含在安装包中；普通应用安装无需管理员权限。
+
+新版安装包会沿用原安装目录，保留 AppData 中的连接、画面和副屏位置设置。
+更新或卸载前请从托盘或窗口菜单选择“退出 PadBridge”，关闭窗口的 × 只会隐藏到托盘。
+界面或后台工作进程仍运行时，安装器会要求先退出，避免覆盖正在使用的文件。
+可从 Windows“设置 → 应用 → 已安装的应用 → PadBridge”卸载；卸载保留用户设置和用户自行添加的文件。
+Apple 通信组件、虚拟显示驱动以及显卡程序配置属于单独管理的组件，不随主应用卸载。
+
+便携使用可下载 `padbridge-0.3.1-windows-x64.zip`，完整解压后双击 `PadBridge/PadBridge.exe`，
+保留同目录 `_internal` 文件夹。ZIP 用户可以直接改用安装版，设置继续共用；旧目录不会自动删除。
+安装版程序位置与便携版不同，已有 NVIDIA 程序电源设置需指向新 EXE 路径。
+应用安装器尚未做 Authenticode 代码签名，Windows 可能显示未知发布者；虚拟显示驱动有独立签名。
 
 源码开发：安装 Python 3.12～3.14 x64，在项目目录运行：
 
@@ -42,7 +54,7 @@ Bonjour 发现由 Python zeroconf 实现，不依赖 Avahi / D-Bus。网络阻�
 
 ## 功能范围
 
-| 功能 | Windows 0.3.0 |
+| 功能 | Windows 0.3.1 |
 | --- | --- |
 | 主屏镜像 | 支持，不修改分辨率/布局 |
 | 已有扩展桌面 | 命令行通过 `--monitor` 选择已启用的非主屏，含可被 GDI 采集的虚拟屏 |
@@ -108,7 +120,8 @@ OpenDisplay TCP 协议没有加密或认证，只用于可信局域网。
 .\padbridge.cmd stop
 ```
 
-便携包可将 `.\padbridge.cmd` 替换为 `.\PadBridge.exe`。`run` 为前台调试命令，Ctrl+C 停止；
+便携包可将 `.\padbridge.cmd` 替换为 `.\PadBridge.exe`；安装版在其安装目录中使用同样命令。
+`run` 为前台调试命令，Ctrl+C 停止；
 `start` 创建独立后台进程。仅连接时初始化采集和编码。停止使用每次运行的唯一标识、进程
 创建时间及命令行核验，避免误结束复用旧 PID 的其他进程。
 
@@ -124,7 +137,9 @@ OpenDisplay TCP 协议没有加密或认证，只用于可信局域网。
 .\.venv\Scripts\python.exe -m pip install -r requirements-windows-dev.txt
 powershell -NoProfile -ExecutionPolicy Bypass -File .\test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\test.ps1 -Smoke
+powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\bootstrap_inno.ps1
 .\.venv\Scripts\python.exe packaging\build_windows.py
+.\.venv\Scripts\python.exe tests\windows\smoke_installer.py
 .\.venv\Scripts\python.exe tests\windows\smoke_stream.py --executable dist\PadBridge\PadBridge.exe
 .\.venv\Scripts\python.exe tests\windows\smoke_stream.py --virtual --executable dist\PadBridge\PadBridge.exe
 .\.venv\Scripts\python.exe tests\windows\smoke_stream.py --virtual --require-graphics --executable dist\PadBridge\PadBridge.exe
@@ -141,8 +156,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\test.ps1 -Smoke
 `--display-position left` 验证左侧负坐标、重连后位置和物理屏布局；省略时验证默认右侧。
 `smoke_modes.py` 验证镜像到原生扩展的尺寸切换、仅执行一次比例同步，以及同步期间保持同一副屏。
 
-构建输出为 `dist/PadBridge/PadBridge.exe`、Windows ZIP 和 `SHA256SUMS-windows`。
-包中包含构建使用的项目源码、依赖版本与许可证。Windows Actions 单独上传构建产物。
+构建输出为 `dist/PadBridge/PadBridge.exe`、Windows ZIP、`*-windows-x64-setup.exe` 和
+包含 ZIP/安装器校验值的 `SHA256SUMS-windows`。安装器使用固定的 Inno Setup 7.1.1，
+引导脚本核对官方文件的 SHA-256 与签名后，仅在项目 `.cache` 中以便携模式解包编译器。
+包中包含构建使用的项目源码、依赖版本、许可证和应用图标；Windows Actions 上传两个发行产物。
+
+`smoke_installer.py` 会在临时目录中实际安装旧版本号的测试包，再运行当前安装器升级，
+检查应用登记、中文路径、开始菜单、已运行进程保护、编码自检、卸载和用户文件保留。
+使用当前用户的卸载登记，因此检测到已经安装 PadBridge 时会拒绝执行，应改用干净测试账户。
+测试不会自动启动桌面串流；普通用户安装时无需运行这些开发测试。
 
 已实机验证 USB 镜像、USB/Wi-Fi 原生尺寸扩展串流、Wi-Fi 端正常显示和操作，
 以及断开后收回副屏、保留主屏布局。
