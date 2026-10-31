@@ -8,8 +8,15 @@ iPad 端使用 [OpenDisplay](https://apps.apple.com/app/id6780264891)（Philip P
 [Windows 11 使用说明](docs/windows.md) · [开发与构建](CONTRIBUTING.md) · [0.3.0 发布说明](docs/releases/v0.3.0.md)
 
 本轮实现与实测数据见 [Windows 优化记录](docs/windows-optimization.md) 和
-[Linux 优化记录](docs/linux-optimization.md)。0.3.0 当前为开发版本，
-分支 CI 产物与已发布的 GitHub Release 分开；仅推送版本标签才发布正式安装包。
+[Linux 优化记录](docs/linux-optimization.md)。**v0.3.0** 同时包含 Windows 11 支持与 Linux 性能优化。
+
+| 系统 | 下载 | 使用方式 |
+| --- | --- | --- |
+| Ubuntu 24.04 x86_64 / Xorg | [`.deb` 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.0/padbridge_0.3.0_amd64.deb) | 用 `apt install` 安装，从应用菜单启动 |
+| Windows 11 x64 | [便携 ZIP](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.0/padbridge-0.3.0-windows-x64.zip) | 完整解压后运行 `PadBridge/PadBridge.exe` |
+
+[源码包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.0/padbridge-0.3.0-source.tar.gz)
+与 SHA-256 校验文件一并提供在 [v0.3.0 发布页](https://github.com/LittleChen12/Pad_Bridge/releases/tag/v0.3.0)。
 
 ## Windows 11
 
@@ -30,7 +37,7 @@ USB 需要 Apple 移动设备支持。安装、测试、构建与实机验收范
 
 ## 安装与支持范围
 
-首个安装包目标为 **Ubuntu 24.04、x86_64、Xorg 会话**。
+Linux 安装包目标为 **Ubuntu 24.04、x86_64、Xorg 会话**。
 
 从 Releases 下载 `.deb` 后，在文件所在目录运行：
 
@@ -135,7 +142,7 @@ journalctl --user -u padbridge.service -f
 | `ui/application.py`、`ui/window.py` | 异步界面行为与窗口布局 |
 | `ui/panels.py`、`ui/tray.py`、`ui/styles.css` | 控件、托盘、样式 |
 | `enable_display.py` | 独立的最小权限辅助程序 |
-| `windows/` | Windows 的采集、编码、设备、输入、工作进程和 Qt 界面，详见 [模块对应表](docs/linux-upgrade.md#模块对应表) |
+| `windows/` | Windows 的采集、编码、设备、输入、工作进程和 Qt 界面，详见 [跨平台架构](docs/architecture.md) |
 
 界面不直接设置显示模式，也不启动编码器；用户连接后才创建独立工作进程，Linux 由 systemd 用户服务管理。
 镜像适配器仅查询 RandR。输入与光标始终按原始采集区域映射，与视频缩放解耦。

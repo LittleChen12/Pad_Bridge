@@ -5,6 +5,7 @@ Windows 环境、测试和便携构建见 [Windows 开发说明](docs/windows.md
 下文命令用于 Ubuntu；Windows 平台实现集中在 `padbridge_app/windows/`，不得在公共入口导入 X11/GTK。
 本轮实现与实测结论见 [Windows 优化记录](docs/windows-optimization.md) 和
 [Linux 优化记录](docs/linux-optimization.md)。跨平台共享改动应同时检查两套测试。
+代码分层与平台边界见 [架构说明](docs/architecture.md)。
 
 ## 获取源码
 
@@ -48,6 +49,12 @@ python3 packaging/build_release.py
 推送与版本号一致的 `v<版本>` 标签后，GitHub Actions 先测试、构建和检查包，
 再创建 GitHub Release 并附上产物。`main`、`feature/**` 分支推送和 PR 都运行 Ubuntu/Windows
 无设备测试与构建检查；分支推送只上传 CI 产物，不创建 Release。
+
+正式发布时，先确认各功能分支的提交都包含在发布候选中，再合入 `main`。
+在干净提交上构建、核对版本与发布说明，并确认 Ubuntu/Windows 检查通过。
+先推送 `main`，再单独推送指向同一提交的附注版本标签；标签流程通过后会发布
+`.deb`、Windows 便携 ZIP、对应源码和两份 SHA-256 文件。
+发布后从 Releases 下载产物核对校验值。已发布的标签和包不覆盖，有修正则递增版本。
 
 ## 代码边界
 

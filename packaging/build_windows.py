@@ -36,7 +36,13 @@ def build():
                     '--specpath', str(work), str(ROOT / 'app.py')], check=True, cwd=ROOT)
     bundle = output / 'PadBridge'
     shutil.copy2(ROOT / 'LICENSE', bundle / 'LICENSE')
-    shutil.copy2(ROOT / 'docs/windows.md', bundle / 'Windows使用说明.md')
+    shutil.copytree(ROOT / 'docs', bundle / 'docs', dirs_exist_ok=True)
+    shutil.copy2(ROOT / 'CONTRIBUTING.md', bundle / 'CONTRIBUTING.md')
+    (bundle / 'Windows使用说明.md').write_text(
+        '# PadBridge for Windows\n\n完整解压本压缩包后，运行 `PadBridge.exe`。\n\n'
+        '配置、依赖和故障排查见 [Windows 使用说明](docs/windows.md)。\n\n'
+        '本版本更新见 [发布说明](docs/releases/v' + __version__ + '.md)。\n\n'
+        '完整源码见 [source/README.md](source/README.md)。\n', encoding='utf-8')
     # Include the exact build inputs, even for a local uncommitted development build.
     source = bundle / 'source'
     source.mkdir(exist_ok=True)

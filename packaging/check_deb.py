@@ -31,7 +31,15 @@ def check(package):
                 ast.parse(item.read_text(), filename=str(item))
         subprocess.run(['desktop-file-validate',str(unpacked / 'usr/share/applications/local.padbridge.Controller.desktop')],check=True)
         subprocess.run([str(software / 'padbridge'),'--help'],check=True,stdout=subprocess.DEVNULL)
-    print(f'{package.name}: metadata, sources, desktop entry and CLI passed.')
+        docs = unpacked / 'usr/share/doc/padbridge'
+        originals = [ROOT/'README.md', ROOT/'CONTRIBUTING.md',
+                     ROOT/'vendor/README.md', ROOT/'vendor/opendisplay-x11.patch',
+                     *(ROOT/'docs').rglob('*.md')]
+        for original in originals:
+            packaged = docs / original.relative_to(ROOT)
+            if not packaged.is_file() or packaged.read_bytes() != original.read_bytes():
+                raise RuntimeError(f'Packaged documentation missing or changed: {original.relative_to(ROOT)}')
+    print(f'{package.name}: metadata, sources, documentation, desktop entry and CLI passed.')
 
 
 if __name__ == '__main__':

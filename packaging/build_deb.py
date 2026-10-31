@@ -57,9 +57,14 @@ def build(destination):
         docs = staging/'usr/share/doc/padbridge'
         docs.mkdir(parents=True)
         shutil.copy2(ROOT/'README.md', docs/'README.md')
+        shutil.copy2(ROOT/'CONTRIBUTING.md', docs/'CONTRIBUTING.md')
+        shutil.copytree(ROOT/'docs', docs/'docs', ignore=ignore)
+        (docs/'vendor').mkdir()
+        for name in ('README.md', 'opendisplay-x11.patch'):
+            shutil.copy2(ROOT/'vendor'/name, docs/'vendor'/name)
         shutil.copy2(ROOT/'LICENSE', docs/'copyright')
         shutil.copy2(ROOT/'vendor/opendisplay-x11/LICENSE', docs/'opendisplay-x11.LICENSE')
-        changes = f'padbridge ({version}) noble; urgency=medium\n\n  * Extended and mirrored iPad display, tray lifecycle, configurable streaming.\n\n -- PadBridge local build <noreply@localhost>  {time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime(epoch))}\n'
+        changes = f'padbridge ({version}) noble; urgency=medium\n\n  * CUDA conversion, bounded video delivery, display placement and diagnostics.\n  * Complete user and developer documentation.\n\n -- PadBridge local build <noreply@localhost>  {time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime(epoch))}\n'
         (docs/'changelog.Debian.gz').write_bytes(gzip.compress(changes.encode(),mtime=epoch))
         control = staging/'DEBIAN'
         control.mkdir()

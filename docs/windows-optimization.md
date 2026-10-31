@@ -1,8 +1,8 @@
 # Windows 0.3.0 适配与优化记录
 
 整理日期：2026-10-31。基线为 Ubuntu 0.2.0（`4f9f9fb`），本轮开发分支为
-`feature/windows11`。本文记录已经实现的行为、如何实现和验证范围；Linux 后续工作见
-[升级交接](linux-upgrade.md)。
+`feature/windows11`。本文记录已经实现的行为、如何实现和验证范围；两端成果现已共同纳入 v0.3.0，
+后续 Linux 实现见 [Linux 优化记录](linux-optimization.md)，原交接过程保存在 [历史归档](history/linux-upgrade-handoff.md)。
 
 ## 完成了什么，怎么实现
 

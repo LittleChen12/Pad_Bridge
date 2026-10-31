@@ -2,7 +2,7 @@
 
 2026-10-31，基于 `feature/windows11` 的 `50c213a`，开发分支为 `feature/linux-upgrade`。
 目标为 Ubuntu 24.04 amd64 / Xorg，继续使用 GTK、GStreamer、RandR 和 systemd。
-本轮未改 Windows 采集/编码实现，保留两平台 CI；0.3.0 仍为开发版本。
+本轮未改 Windows 采集/编码实现，保留两平台 CI；成果已与 Windows 后端一起纳入 v0.3.0。
 
 ## 迁移内容
 
