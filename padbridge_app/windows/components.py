@@ -152,6 +152,9 @@ def run(result_path, check=False, apple_package=None, interactive=False, log_dir
         state = probe() if check else provision(apple_package, interactive, log_dir)
         code = 0
     except Exception as exc:
+        if isinstance(exc, driver_setup.PublisherConfirmationRequired):
+            state['reason'] = 'publisher-confirmation'
+            code = 24
         log = Path(log_dir or Path(result_path).parent) / 'components-error.log'
         log.parent.mkdir(parents=True, exist_ok=True)
         details = traceback.format_exc()
@@ -161,7 +164,7 @@ def run(result_path, check=False, apple_package=None, interactive=False, log_dir
         else:
             message = str(exc)
         log.write_text(details, encoding='utf-8')
-        state['error'] = message.replace('\r', ' ').replace('\n', ' ') + f'。日志：{log}'
+        state['error'] = message.replace('\r', ' ').replace('\n', ' ').rstrip('。.') + f'。日志：{log}'
     parser = configparser.ConfigParser(interpolation=None)
     parser['components'] = state
     with Path(result_path).open('w', encoding='utf-16') as stream:

@@ -74,6 +74,8 @@ en.ComponentsConflict=Another application owns the Virtual Display Driver. Resol
 zh.ComponentsConflict=检测到其他软件管理的 Virtual Display Driver，请处理该驱动后重试。现有显示配置已保留。
 en.ComponentsMemo=USB and extended-display components: automatically detect, install and verify. If USB support is missing, Setup downloads it from Apple (about 39 MB). Allow Windows administrator / driver confirmation when prompted.
 zh.ComponentsMemo=USB 与扩展屏幕组件：自动检测、安装并验证。缺少 USB 支持时由安装器从 Apple 官方下载（约 39 MB）。首次配置请允许 Windows 管理员及驱动发布者确认。
+en.ApplicationOnly=Application-only deployment was explicitly selected on the command line. USB and extended-display components will not be configured.
+zh.ApplicationOnly=命令行已明确选择仅部署主程序，本次不会配置 USB 与扩展屏幕组件。
 
 [Code]
 var
@@ -96,6 +98,8 @@ function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfoInfo,
 begin
   Result := MemoDirInfoInfo + NewLine + NewLine + MemoTasksInfo + NewLine + NewLine +
     CustomMessage('ComponentsMemo');
+  if ExpandConstant('{param:APPLICATIONONLY|0}') = '1' then
+    Result := MemoDirInfoInfo + NewLine + NewLine + CustomMessage('ApplicationOnly');
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -105,6 +109,13 @@ var
 begin
   Result := '';
   if ComponentsDone then exit;
+  { Explicit deployment/testing switch; never inferred from errors or environment.
+    Default interactive and silent installs both require every component. }
+  if ExpandConstant('{param:APPLICATIONONLY|0}') = '1' then begin
+    Log(CustomMessage('ApplicationOnly'));
+    ComponentsDone := True;
+    exit;
+  end;
   WizardForm.PreparingLabel.Caption := CustomMessage('ComponentsStatus');
   try
     if not ComponentsExtracted then begin

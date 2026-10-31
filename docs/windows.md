@@ -169,6 +169,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\bootstrap_inno.p
 检查应用登记、中文路径、开始菜单、已运行进程保护、编码自检、卸载和用户文件保留。
 使用当前用户的卸载登记，因此检测到已经安装 PadBridge 时会拒绝执行，应改用干净测试账户。
 测试不会自动启动桌面串流；普通用户安装时无需运行这些开发测试。
+CI 使用 `--headless-components` 真实安装并检查 Apple USB 服务；若 Windows 首次要求确认显示
+驱动发布者，必须确认安装器失败、未登记主程序且已回滚驱动设备，然后才通过显式
+`/APPLICATIONONLY=1` 测试主程序的安装、升级和卸载。其他任何失败都不会被当作预期结果。
+该参数只用于预部署 / 自动化，不是普通首次安装方式；默认 EXE 安装始终配置全部组件。
+驱动首次发布者确认和真实 iPad 串流仍需交互实机验收，CI 不导入证书或修改 Windows 信任策略。
 
 已实机验证 USB 镜像、USB/Wi-Fi 原生尺寸扩展串流、Wi-Fi 端正常显示和操作，
 以及断开后收回副屏、保留主屏布局。

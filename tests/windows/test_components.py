@@ -118,6 +118,16 @@ def test_error_reaches_unicode_installer_report(monkeypatch, tmp_path):
     assert '安装取消' in (tmp_path / 'components-error.log').read_text(encoding='utf-8')
 
 
+def test_publisher_consent_has_distinct_failure_result(monkeypatch, tmp_path):
+    monkeypatch.setattr(c, 'provision', Mock(side_effect=c.driver_setup.PublisherConfirmationRequired('需要系统确认')))
+    output = tmp_path / 'components.ini'
+    assert c.run(output) == 24
+    report = configparser.ConfigParser(interpolation=None)
+    report.read(output, encoding='utf-16')
+    assert report['components']['reason'] == 'publisher-confirmation'
+    assert report['components']['display'] != 'ready'
+
+
 def test_readonly_probe_works_without_connected_ipad(monkeypatch):
     monkeypatch.setattr(transport, 'list_devices', lambda **kw: [])
     assert REAL_USB_READY()

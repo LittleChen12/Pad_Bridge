@@ -6,7 +6,6 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
-import subprocess
 import tempfile
 import time
 import urllib.request
@@ -26,6 +25,10 @@ REGISTRY = r'SOFTWARE\MikeTheTech\VirtualDisplayDriver'
 
 class RestartRequired(RuntimeError):
     """The signed driver was installed, but Windows needs a restart."""
+
+
+class PublisherConfirmationRequired(RuntimeError):
+    """Windows requires a human publisher confirmation before installing this driver."""
 
 
 class DeviceInfo(ct.Structure):
@@ -70,7 +73,7 @@ def install_device(inf, interactive=False):
         if not newdev.UpdateDriverForPlugAndPlayDevicesW(None, HARDWARE, str(inf), flags, ct.byref(reboot)):
             error = ct.get_last_error()
             if error & 0xffffffff == 0xe0000242:
-                raise RuntimeError('Windows 需要首次确认驱动发布者。请从界面安装扩展组件，或添加 --interactive 显示系统确认窗口。')
+                raise PublisherConfirmationRequired('Windows 需要首次确认驱动发布者，请双击 PadBridge 安装器并确认系统提示；静默安装不能跳过此确认。')
             raise ct.WinError(error)
         return bool(reboot.value)
     except BaseException:

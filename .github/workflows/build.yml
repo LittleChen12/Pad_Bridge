@@ -76,7 +76,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify install, upgrade, uninstall and running-app protection
         shell: pwsh
-        run: .\.venv\Scripts\python.exe tests\windows\smoke_installer.py
+        run: .\.venv\Scripts\python.exe tests\windows\smoke_installer.py --headless-components
       - name: Preserve installer failure logs
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
