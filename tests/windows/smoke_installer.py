@@ -15,6 +15,9 @@ import time
 import uuid
 import winreg
 
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / 'packaging'), str(ROOT / 'vendor/opendisplay-x11')]
 from padbridge_app import __version__
@@ -140,7 +143,7 @@ def smoke(setup, bundle, headless_components=False):
         if logs.is_dir():
             shutil.copytree(logs, work / 'component-logs', dirs_exist_ok=True)
             error = logs / 'components-error.log'
-            if error.is_file():
+            if error.is_file() and sys.exc_info()[0] is not None:
                 print(error.read_text(encoding='utf-8', errors='replace'))
         record = installed()
         if record and Path(record['InstallLocation']).resolve() == target.resolve() and uninstall:

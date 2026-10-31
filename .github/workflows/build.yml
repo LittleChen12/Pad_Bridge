@@ -43,6 +43,8 @@ jobs:
   windows:
     runs-on: windows-2022
     timeout-minutes: 20
+    env:
+      PYTHONUTF8: '1'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -76,13 +78,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify install, upgrade, uninstall and running-app protection
         shell: pwsh
-        run: .\.venv\Scripts\python.exe tests\windows\smoke_installer.py --headless-components
+        run: |
+          .\.venv\Scripts\python.exe tests\windows\smoke_installer.py --headless-components 2>&1 | Tee-Object -FilePath build/installer-smoke-console.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Preserve installer failure logs
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: windows-installer-logs-${{ github.sha }}
-          path: build/installer-smoke-*/**/*.log
+          path: |
+            build/installer-smoke-*/**/*.log
+            build/installer-smoke-console.log
           if-no-files-found: ignore
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
