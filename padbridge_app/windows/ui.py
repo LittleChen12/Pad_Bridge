@@ -130,7 +130,7 @@ class Window(QMainWindow):
         content.addWidget(label('iPad 扩展与镜像', 'section-title'))
         content.addWidget(label('镜像模式直接读取主屏。未连接时不运行截图或视频编码。', 'muted', True))
         content.addWidget(label('选择扩展屏幕后，连接时启用 iPad 副屏，断开后收回。', 'muted', True))
-        content.addWidget(label('USB 连接需要 Apple 移动设备支持。Wi-Fi 需同一局域网，并允许 OpenDisplay 本地网络权限。', 'muted', True))
+        content.addWidget(label('安装版会自动配置 USB 和扩展组件。Wi-Fi 需同一局域网，并允许 OpenDisplay 本地网络权限。', 'muted', True))
         link = button('获取 iPad 接收端 OpenDisplay', lambda: QDesktopServices.openUrl(
                       QUrl('https://apps.apple.com/app/id6780264891')), 'plain')
         content.addWidget(link, 0, Qt.AlignmentFlag.AlignLeft)

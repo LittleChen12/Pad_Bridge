@@ -27,7 +27,7 @@ def main():
         from . import service
     parser = argparse.ArgumentParser(description='PadBridge · iPad USB / Wi-Fi 扩展与镜像')
     parser.add_argument('command', nargs='?', default='ui',
-                        choices=('ui', 'start', 'stop', 'status', 'doctor', 'discover', 'authorize', 'run', 'release', 'encoder-test', 'monitors', 'install-display-driver'))
+                        choices=('ui', 'start', 'stop', 'status', 'doctor', 'discover', 'authorize', 'run', 'release', 'encoder-test', 'monitors', 'install-display-driver', 'setup-components'))
     parser.add_argument('--transport', choices=('usb', 'wifi'), help='USB 数据线或局域网 Wi-Fi')
     parser.add_argument('--address', help='iPad 局域网 IP[:端口]；Wi-Fi 模式可留空自动搜索')
     parser.add_argument('--display-mode', choices=('extend', 'mirror'), help='扩展屏幕或镜像主屏')
@@ -40,10 +40,20 @@ def main():
     parser.add_argument('--worker-token', help=argparse.SUPPRESS)
     parser.add_argument('--receiver-id', default='', help=argparse.SUPPRESS)
     parser.add_argument('--interactive', action='store_true', help='安装显示驱动时显示 Windows 发布者确认窗口')
+    parser.add_argument('--check', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--result', help=argparse.SUPPRESS)
+    parser.add_argument('--apple-package', help=argparse.SUPPRESS)
+    parser.add_argument('--setup-log-dir', help=argparse.SUPPRESS)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
     if args.command == 'ui':
         return gui()
+    if args.command == 'setup-components':
+        if not WINDOWS or not args.result:
+            raise RuntimeError('setup-components 需要 Windows 和 --result 文件路径。')
+        from .windows.components import run
+        return run(args.result, check=args.check, apple_package=args.apple_package,
+                   interactive=args.interactive, log_dir=args.setup_log_dir)
     video = None
     if args.command in ('start', 'run'):
         data = preferences()['video_options'] if args.command == 'start' else VideoOptions().to_dict()

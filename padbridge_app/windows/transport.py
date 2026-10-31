@@ -36,8 +36,8 @@ def list_devices(endpoint=MUX_ADDRESS, timeout=3):
             return [d for d in reply.get('DeviceList', [])
                     if isinstance(d, dict) and usbmux.is_usb(d)]
     except OSError as exc:
-        raise RuntimeError('无法连接 Apple Mobile Device Service。请安装/修复 Apple Devices 或 iTunes '
-                           '提供的 Apple 移动设备支持，并确认服务正在运行；Wi-Fi 不依赖此服务。') from exc
+        raise RuntimeError('无法连接 Apple USB 通信服务。请重新运行 PadBridge 安装器自动修复组件；'
+                           'Wi-Fi 不依赖此服务。') from exc
 
 
 def connect_usb(device_id, endpoint=MUX_ADDRESS, timeout=3):

@@ -24,6 +24,10 @@ HARDWARE = r'Root\MttVDD'
 REGISTRY = r'SOFTWARE\MikeTheTech\VirtualDisplayDriver'
 
 
+class RestartRequired(RuntimeError):
+    """The signed driver was installed, but Windows needs a restart."""
+
+
 class DeviceInfo(ct.Structure):
     _fields_ = [('size', wt.DWORD), ('guid', ct.c_ubyte*16),
                 ('instance', wt.DWORD), ('reserved', ct.c_size_t)]
@@ -110,12 +114,13 @@ def configuration():
     return ET.tostring(root, encoding='utf-8', xml_declaration=True)
 
 
-def install(interactive=False):
+def install(interactive=False, archive=None):
     from . import service
     if service.active():
         raise RuntimeError('安装扩展组件前请先断开串流。')
     if device_control.owned_device():
-        device_control.configure()
+        if not device_control.ready():
+            device_control.configure()
         vd.recover()
         vd.park_idle()
         return vd.INSTALL_DIR
@@ -131,9 +136,12 @@ def install(interactive=False):
     before = [m.to_dict() for m in desktop.monitors()]
     with tempfile.TemporaryDirectory(prefix='padbridge-driver-') as temporary:
         directory = Path(temporary)
-        archive = directory/'driver.zip'
-        with urllib.request.urlopen(URL, timeout=30) as response, archive.open('wb') as destination:
-            shutil.copyfileobj(response, destination)
+        bundled = Path(__file__).with_name('VirtualDisplayDriver.zip')
+        archive = Path(archive) if archive else bundled
+        if not archive.is_file():
+            archive = directory/'driver.zip'
+            with urllib.request.urlopen(URL, timeout=30) as response, archive.open('wb') as destination:
+                shutil.copyfileobj(response, destination)
         if hashlib.sha256(archive.read_bytes()).hexdigest() != SHA256:
             raise RuntimeError('虚拟显示驱动校验值不匹配，已取消安装。')
         with zipfile.ZipFile(archive) as package:
@@ -170,5 +178,13 @@ def install(interactive=False):
             vd.park_idle()
             return vd.INSTALL_DIR
         time.sleep(0.2)
-    raise RuntimeError('驱动已安装，请重启 Windows 后再连接扩展屏幕。' if reboot else
-                       '驱动已安装，但虚拟屏尚未就绪。请检查设备管理器。')
+    # The PnP device can already exist before a display adapter is enumerated
+    # (headless installation / pending reboot). Configure its protected controls
+    # now so the first unelevated launch after restart needs no extra setup.
+    if device_control.owned_device():
+        device_control.configure()
+        device_control.set_enabled(False)
+        if reboot:
+            raise RestartRequired('驱动已安装，重启 Windows 后即可使用扩展屏幕。')
+        return vd.INSTALL_DIR
+    raise RuntimeError('驱动已安装，但虚拟设备尚未就绪；请重启后重新运行安装器。')

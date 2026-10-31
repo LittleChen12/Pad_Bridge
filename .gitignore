@@ -16,5 +16,8 @@ htmlcov/
 .env.*
 *.log
 *.deb
+*.exe
+*.msi
+*.zip
 *.tar.gz
 .DS_Store

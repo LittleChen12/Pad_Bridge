@@ -32,8 +32,14 @@ def installed():
 
 def run_installer(executable, *options, success=True):
     result = subprocess.run([str(executable), '/VERYSILENT', '/SUPPRESSMSGBOXES',
-                             '/NORESTART', '/SP-', *options], timeout=180)
+                             '/NORESTART', '/SP-', *options], timeout=600)
     if success:
+        if result.returncode:
+            for option in options:
+                if option.startswith('/LOG='):
+                    path = Path(option.removeprefix('/LOG='))
+                    if path.is_file():
+                        print('\n'.join(path.read_text(encoding='utf-8-sig', errors='replace').splitlines()[-40:]))
         assert result.returncode == 0, f'Installer failed: {result.returncode}'
     else:
         assert result.returncode != 0, 'Installer must refuse to modify a running application'
@@ -72,6 +78,15 @@ def smoke(setup, bundle):
         assert shortcut.is_file(), 'Start menu shortcut was not installed'
         exe = target / 'PadBridge.exe'
         assert sha(exe) == sha(bundle / 'PadBridge.exe')
+        assert (target / 'source.zip').is_file() and not (target / 'source').exists()
+        # Both checks are from the installed executable, with no iPad attached.
+        report = work / 'components.ini'
+        subprocess.run([str(exe), 'setup-components', '--check', '--result', str(report)],
+                       check=True, timeout=45)
+        import configparser
+        checks = configparser.ConfigParser()
+        checks.read(report, encoding='utf-16')
+        assert checks['components']['apple'] == checks['components']['display'] == 'ready'
         # Do not remove files the user added to the installation directory.
         retained = target / 'user-file.txt'
         retained.write_text('keep this user file', encoding='utf-8')

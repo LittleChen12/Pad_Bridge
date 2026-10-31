@@ -1,12 +1,17 @@
 # Windows 11 使用与开发
 
-0.3.0 新增 Windows 11 x64 后端；0.3.1 增加 EXE 安装版，保留 Ubuntu/Xorg 后端。
+0.3.2 把 Windows 11 x64 主程序、USB 通信与扩展屏幕组件整合进一个安装流程。
 
 ## 启动
 
-推荐下载 `padbridge-0.3.1-windows-x64-setup.exe`，双击打开简体中文/英文安装向导。
+推荐下载 `padbridge-0.3.2-windows-x64-setup.exe`，双击打开简体中文/英文安装向导。
 默认安装到 `%LOCALAPPDATA%\Programs\PadBridge`，自动创建开始菜单入口，桌面快捷方式可选。
-Python、Qt 和编码库已经包含在安装包中；普通应用安装无需管理员权限。
+Python、Qt、编码库和签名虚拟显示驱动已经包含在安装包中。
+向导自动检查 USB 与扩展组件；缺少 USB 支持时自动从 Apple 官方下载并安装通信组件（约 39 MB）。
+无需另外寻找安装包或运行命令，不依赖 WinGet、Microsoft Store 或 iTunes。
+首次补齐系统组件需联网并允许管理员确认，Windows 可能另行要求确认驱动发布者。
+已有可用组件直接复用，单独更新主程序无需管理员权限。
+组件准备失败时，向导会显示错误并提供重试；需要重启时会提示，不强制重启。
 
 新版安装包会沿用原安装目录，保留 AppData 中的连接、画面和副屏位置设置。
 更新或卸载前请从托盘或窗口菜单选择“退出 PadBridge”，关闭窗口的 × 只会隐藏到托盘。
@@ -14,8 +19,9 @@ Python、Qt 和编码库已经包含在安装包中；普通应用安装无需�
 可从 Windows“设置 → 应用 → 已安装的应用 → PadBridge”卸载；卸载保留用户设置和用户自行添加的文件。
 Apple 通信组件、虚拟显示驱动以及显卡程序配置属于单独管理的组件，不随主应用卸载。
 
-便携使用可下载 `padbridge-0.3.1-windows-x64.zip`，完整解压后双击 `PadBridge/PadBridge.exe`，
-保留同目录 `_internal` 文件夹。ZIP 用户可以直接改用安装版，设置继续共用；旧目录不会自动删除。
+便携使用可下载 `padbridge-0.3.2-windows-x64.zip`，适合已经配置组件的电脑。
+完整解压后双击 `PadBridge/PadBridge.exe`，保留同目录 `_internal` 文件夹。
+首次使用推荐 EXE；ZIP 用户可以直接改用安装版，设置继续共用；旧目录不会自动删除。
 安装版程序位置与便携版不同，已有 NVIDIA 程序电源设置需指向新 EXE 路径。
 应用安装器尚未做 Authenticode 代码签名，Windows 可能显示未知发布者；虚拟显示驱动有独立签名。
 
@@ -33,20 +39,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1
 ## 连接
 
 1. iPad 打开 OpenDisplay。
-2. 选择“镜像主屏”或“扩展屏幕”。首次扩展点击“安装扩展组件”，需要管理员权限，
-   并由用户在 Windows 窗口确认驱动发布者。扩展模式会自动管理 iPad 副屏，无需再选择屏幕来源。
+2. 选择“镜像主屏”或“扩展屏幕”。安装版已经配置扩展组件；扩展模式会自动管理 iPad 副屏。
    “副屏位置”可选左侧或右侧，选择会保存并在下次连接时应用；旧配置默认右侧。
-3. USB：安装 Apple Devices 或 iTunes 提供的 Apple 移动设备支持，确保
-   Apple Mobile Device Service 正在运行；连接数据线，在 iPad 上信任此电脑。
+3. USB：连接数据线，在 iPad 上信任此电脑。安装版已经配置 Apple USB 通信服务。
 4. Wi-Fi：设备在同一局域网，允许 OpenDisplay 本地网络权限；可搜索或填写 `IP:9000`。
 5. 点击“连接 iPad”。修改参数前断开。
 
 Windows USB 使用 Apple 本机 usbmux TCP 服务 `127.0.0.1:27015`；Wi-Fi 不依赖 Apple 软件。
-若缺少此服务，也可安装 Apple 官方独立通信组件：
-
-```powershell
-winget install --id Apple.AppleMobileDeviceSupport --exact --source winget
-```
+若组件被外部卸载或服务异常，重新运行 PadBridge 安装器即可自动检测并尝试修复。
+安装日志位于 `%LOCALAPPDATA%\PadBridge\setup-logs`，主安装日志位于用户临时目录。
+便携 / 源码用户也可以使用安装器完成首次组件配置；界面的“安装扩展组件”保留为高级修复入口。
 
 仅在设备管理器里看到 iPad（照片/MTP）不代表 USB 串流组件已经安装。
 Bonjour 发现由 Python zeroconf 实现，不依赖 Avahi / D-Bus。网络阻止 mDNS 时可手动填写地址。
@@ -54,11 +56,11 @@ Bonjour 发现由 Python zeroconf 实现，不依赖 Avahi / D-Bus。网络阻�
 
 ## 功能范围
 
-| 功能 | Windows 0.3.1 |
+| 功能 | Windows 0.3.2 |
 | --- | --- |
 | 主屏镜像 | 支持，不修改分辨率/布局 |
 | 已有扩展桌面 | 命令行通过 `--monitor` 选择已启用的非主屏，含可被 GDI 采集的虚拟屏 |
-| 无副屏时自动创建扩展屏 | 安装签名扩展组件后支持；按 iPad 原生尺寸选择模式，断开后从系统显示列表移除 |
+| 无副屏时自动创建扩展屏 | EXE 自动配置签名扩展组件；按 iPad 原生尺寸选择模式，断开后从系统显示列表移除 |
 | USB / Wi-Fi / 重连 | 协议及重连已测试；USB 镜像/扩展、Wi-Fi 原生扩展已实机验证 |
 | H.264 | 优先实际探测 NVENC，不可用时回退 libx264；禁用 B 帧、前瞻和额外输出等待帧 |
 | 高 DPI / 负坐标副屏 | 使用物理像素，采集区域与编码缩放分离 |
@@ -67,7 +69,8 @@ Bonjour 发现由 Python zeroconf 实现，不依赖 Avahi / D-Bus。网络阻�
 | 托盘 | × 隐藏；托盘恢复、断开、退出；无托盘时保留窗口并提示菜单退出 |
 
 扩展组件使用 [VirtualDrivers Virtual Display Driver 25.7.23](https://github.com/VirtualDrivers/Virtual-Display-Driver/releases/tag/25.7.23)
-的 x64 驱动包，仅在明确点击安装或运行安装命令时下载；固定 SHA-256 并校验 Authenticode 签名。
+的 x64 驱动包，随 Windows 包内置，安装时固定 SHA-256 并校验 Authenticode 签名。
+源码运行且未打包时，显式安装命令仍可从同一固定官方地址下载。
 首次安装需要管理员权限及 Windows 发布者确认，不导入证书或修改签名策略。
 安装时配置 `\PadBridgeDisplayControl\Enable`、`Disable` 两个专用计划任务，
 只启停本程序安装并记录的 `Root\MttVDD` 设备；每次操作重新校验设备实例与硬件标识。
@@ -159,7 +162,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\bootstrap_inno.p
 构建输出为 `dist/PadBridge/PadBridge.exe`、Windows ZIP、`*-windows-x64-setup.exe` 和
 包含 ZIP/安装器校验值的 `SHA256SUMS-windows`。安装器使用固定的 Inno Setup 7.1.1，
 引导脚本核对官方文件的 SHA-256 与签名后，仅在项目 `.cache` 中以便携模式解包编译器。
-包中包含构建使用的项目源码、依赖版本、许可证和应用图标；Windows Actions 上传两个发行产物。
+包中包含构建使用的项目源码 `source.zip`、依赖版本、许可证和应用图标；源码只收集 Git 跟踪文件。
+本地构建前先 `git add` 新增源码；正式发布仍须从干净提交构建。Windows Actions 上传两个发行产物。
 
 `smoke_installer.py` 会在临时目录中实际安装旧版本号的测试包，再运行当前安装器升级，
 检查应用登记、中文路径、开始菜单、已运行进程保护、编码自检、卸载和用户文件保留。
@@ -173,7 +177,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\bootstrap_inno.p
 
 ## 连接问题定位
 
-- **USB 系统能看到 iPad，但 PadBridge 无法连接**：运行 `doctor` 检查 Apple 通信服务；
+- **USB 系统能看到 iPad，但 PadBridge 无法连接**：可重新运行安装器检查 / 修复 Apple 通信服务；
   MTP/照片设备识别不等同于 OpenDisplay 所需的 usbmux 接口已可用。
 - **Wi-Fi 能搜索到，但连接超时**：mDNS 广播可达不保证 TCP 单播可达。用
   `Test-NetConnection <iPad-IP> -Port 9000` 检查；若系统也失败，应检查来宾网络、AP 客户端隔离、

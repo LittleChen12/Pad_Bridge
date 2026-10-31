@@ -77,6 +77,13 @@ jobs:
       - name: Verify install, upgrade, uninstall and running-app protection
         shell: pwsh
         run: .\.venv\Scripts\python.exe tests\windows\smoke_installer.py
+      - name: Preserve installer failure logs
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-installer-logs-${{ github.sha }}
+          path: build/installer-smoke-*/**/*.log
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: padbridge-windows-${{ github.sha }}

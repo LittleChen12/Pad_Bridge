@@ -43,8 +43,9 @@ PadBridge 的公共入口按操作系统延迟导入后端。界面只管理设�
 - `tests/`：Linux 适配器、布局、发送、参数和显式实机测试；`tests/windows/`：Windows 后端测试。
 - `vendor/`：固定版本的上游代码、许可证及可复现的本地补丁；不运行上游安装器。
 - `packaging/`：Linux 包、Windows 安装器/便携包与源码发布构建；不保存本机运行库或用户配置。
+- `windows/components.py`：安装器专用的系统组件检测、配置与结果报告；日常启动不下载或安装组件。
 - `.github/workflows/build.yml`：Ubuntu/Windows 检查与构建；版本标签在两端通过后发布。
-- `docs/`：使用指南、架构、实测与版本说明；`docs/history/` 仅保留历史交接记录。
+- `docs/`：当前使用指南、架构、实测与版本说明；已完成的交接待办通过 Git 历史查阅。
 - `.cache/`、`runtime/`、`validation/`、`dist/`、`build/` 为本地忽略目录，不纳入源码发布。
 
 测试和发布命令见 [开发说明](../CONTRIBUTING.md)。

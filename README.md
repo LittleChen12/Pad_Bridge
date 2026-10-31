@@ -1,28 +1,30 @@
 # PadBridge
 
 通过 USB 或同一局域网 Wi-Fi，把 iPad 用作电脑的镜像屏或扩展屏。
-支持 Ubuntu/Xorg 和 Windows 11 x64；0.3.1 新增 Windows EXE 安装包。
+支持 Ubuntu/Xorg 和 Windows 11 x64；Windows 安装器会自动配置 USB 和扩展屏幕组件。
 iPad 端使用 [OpenDisplay](https://apps.apple.com/app/id6780264891)（Philip Poloczek）。
 
 [下载最新版本](https://github.com/LittleChen12/Pad_Bridge/releases/latest) ·
-[Windows 11 使用说明](docs/windows.md) · [开发与构建](CONTRIBUTING.md) · [0.3.1 发布说明](docs/releases/v0.3.1.md)
+[Windows 11 使用说明](docs/windows.md) · [开发与构建](CONTRIBUTING.md) · [0.3.2 发布说明](docs/releases/v0.3.2.md)
 
 本轮实现与实测数据见 [Windows 优化记录](docs/windows-optimization.md) 和
-[Linux 优化记录](docs/linux-optimization.md)。**v0.3.1** 保留两端的功能与性能优化，补齐 Windows 安装体验。
+[Linux 优化记录](docs/linux-optimization.md)。**v0.3.2** 整合 Windows 首次安装并精简仓库。
 
 | 系统 | 下载 | 使用方式 |
 | --- | --- | --- |
-| Ubuntu 24.04 x86_64 / Xorg | [`.deb` 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.1/padbridge_0.3.1_amd64.deb) | 用 `apt install` 安装，从应用菜单启动 |
-| Windows 11 x64 | [EXE 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.1/padbridge-0.3.1-windows-x64-setup.exe) | 双击安装，从开始菜单启动；在“已安装的应用”中卸载 |
-| Windows 便携使用 | [ZIP 压缩包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.1/padbridge-0.3.1-windows-x64.zip) | 完整解压后运行 `PadBridge/PadBridge.exe` |
+| Ubuntu 24.04 x86_64 / Xorg | [`.deb` 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.2/padbridge_0.3.2_amd64.deb) | 用 `apt install` 安装，从应用菜单启动 |
+| Windows 11 x64 | [EXE 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.2/padbridge-0.3.2-windows-x64-setup.exe) | 一次配置主程序、USB 和扩展组件；从开始菜单启动 |
+| Windows 便携使用 | [ZIP 压缩包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.2/padbridge-0.3.2-windows-x64.zip) | 适合已配置组件的电脑；完整解压后运行 |
 
-[源码包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.1/padbridge-0.3.1-source.tar.gz)
+[源码包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.2/padbridge-0.3.2-source.tar.gz)
 与 SHA-256 校验文件一并提供在 [v0.3.1 发布页](https://github.com/LittleChen12/Pad_Bridge/releases/tag/v0.3.1)。
 
 ## Windows 11
 
-下载 `padbridge-0.3.1-windows-x64-setup.exe`，双击按向导安装即可。
-默认安装到当前用户目录，自动创建开始菜单入口，可选桌面快捷方式；不需要另外安装 Python。
+下载 `padbridge-0.3.2-windows-x64-setup.exe`，双击按向导安装即可。
+默认安装到当前用户目录，自动创建开始菜单入口，可选桌面快捷方式。
+主程序运行库和扩展驱动已内置；缺少 Apple USB 通信组件时，向导自动从 Apple 官方获取并安装。
+首次补齐系统组件需要联网和管理员确认，无需另装 Python、iTunes 或手动下载组件。
 升级前从托盘退出旧版，再运行新版安装包，连接和画面设置会保留。
 便携 ZIP 仍可完整解压使用。源码开发运行：
 
@@ -31,12 +33,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1
 .\padbridge.cmd
 ```
 
-默认镜像主屏；首次安装签名扩展组件后，可自动创建 iPad 副屏，断开后收回。
+默认镜像主屏；安装器配置扩展组件后，可自动创建 iPad 副屏，断开后收回。
 扩展模式可保存副屏默认位于左侧或右侧；命令行还可选择 Windows 已启用的物理或虚拟副屏。
 使用 Windows Graphics Capture（GDI 回退）、低延迟 NVENC / x264 编码和独立后台进程，
 支持 USB、Wi-Fi、触控和托盘。Qt 界面延续 Ubuntu 版的侧栏、卡片和配色。
 NVENC 直接处理 BGRA，画面处理与网络发送并行；切换镜像/扩展时自动同步 iPad 的画面比例。
-USB 需要 Apple 移动设备支持。安装、测试、构建与实机验收范围见 [Windows 文档](docs/windows.md)。
+USB 通信组件由 EXE 安装器配置。安装、测试、构建与实机验收范围见 [Windows 文档](docs/windows.md)。
 以下安装及系统依赖说明针对 Ubuntu。
 
 ## 安装与支持范围
@@ -46,7 +48,7 @@ Linux 安装包目标为 **Ubuntu 24.04、x86_64、Xorg 会话**。
 从 Releases 下载 `.deb` 后，在文件所在目录运行：
 
 ```bash
-sudo apt install ./padbridge_0.3.1_amd64.deb
+sudo apt install ./padbridge_0.3.2_amd64.deb
 ```
 
 安装后从应用菜单打开 **PadBridge**。安装包使用系统依赖，不包含设备 IP、用户设置或开发缓存。

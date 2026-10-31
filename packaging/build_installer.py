@@ -10,6 +10,7 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from padbridge_app import __version__
+from windows_dependencies import installer_inputs
 
 APP_ID = 'LittleChen12.PadBridge'
 UNINSTALL_KEY = rf'Software\Microsoft\Windows\CurrentVersion\Uninstall\{APP_ID}_is1'
@@ -27,8 +28,10 @@ def compile_installer(bundle, output, version=__version__):
     if not (bundle / 'PadBridge.exe').is_file() or not (bundle / '_internal').is_dir():
         raise RuntimeError('Build the complete portable application first.')
     output.mkdir(parents=True, exist_ok=True)
+    license_path, includes = installer_inputs()
     subprocess.run([str(compiler_path()), '/Qp', f'/DAppVersion={version}',
                     f'/DProgramSource={bundle}', f'/DOutputPath={output}',
+                    f'/DInstallerLicense={license_path}', f'/DComponentDefinitions={includes}',
                     str(ROOT / 'packaging/windows.iss')], check=True)
     installer = output / f'padbridge-{version}-windows-x64-setup.exe'
     if not installer.is_file():

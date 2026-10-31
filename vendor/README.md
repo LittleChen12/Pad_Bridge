@@ -7,8 +7,11 @@
 - Revision: `0301158192212c5aa7ad46d5901048251a46e936`
 - License: GPL-3.0-or-later; original headers, `LICENSE`, `LICENSES/` and `REUSE.toml` are retained.
 
-`opendisplay-x11/` contains the complete `odx11` Python runtime and the five upstream
-test modules exercised by PadBridge. It is an ordinary source snapshot, not a Git
+`opendisplay-x11/` contains the `odx11` runtime modules used by PadBridge and the five upstream
+test modules exercised by PadBridge. The unused upstream application entry point
+(`__main__.py`), GUI (`gui.py`), GUI checks (`checks.py`) and settings dialog
+(`settings.py`) are omitted: PadBridge supplies its own entry point and interface.
+It is an ordinary source snapshot, not a Git
 submodule, so a normal clone and a source archive include the dependency. Upstream
 installer scripts, development tools, CI, performance reports and Git metadata are
 not included. The original sources remain available at the pinned upstream revision.

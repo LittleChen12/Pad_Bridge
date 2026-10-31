@@ -60,6 +60,11 @@ Windows 构建先运行 `packaging/bootstrap_inno.ps1` 准备固定版本的便�
 `packaging/build_windows.py` 同时生成安装 EXE 和 ZIP。`packaging/windows.iss` 的 AppId
 须跨版本保持不变，以便 Windows 正确识别升级和卸载；安装/卸载仅管理应用自己的文件。
 更新 Windows 运行入口时保留 `windows/installation.py` 的进程存活标记，避免运行中覆盖文件。
+0.3.2 的 EXE 默认通过 `windows/components.py` 检测并配置 USB 与扩展组件；
+`driver_setup.py` 使用内置签名驱动，Apple USB MSI 仅在客户端缺少服务时从官方获取。
+更新依赖版本时同时更新固定校验值和 `packaging/licenses/` 中的对应许可。
+Windows 包中的 `source.zip` 从 Git 跟踪文件构建，本地新增文件需先 `git add`；
+安装器在准备阶段验证组件，失败必须返回非零状态，不得跳过后宣布安装成功。
 
 ## 代码边界
 
@@ -69,5 +74,7 @@ Windows 构建先运行 `packaging/bootstrap_inno.ps1` 准备固定版本的便�
 - 退出、断线、布局变化应回收各自持有的资源。
 - 上游修改保留来源及许可证，更新 `vendor/opendisplay-x11.patch`。
 - 不提交设备标识、真实地址、屏幕截图、日志、缓存或本机解压的运行库。
+- `main` 仅保留当前运行代码、构建脚本、测试和有效文档；已完成的临时交接通过 Git 历史查阅。
+- 上游快照仅保留被使用的模块；删减时核对导入关系，并在 `vendor/README.md` 记录范围。
 
 提交前运行与改动对应的检查；修改显示或生命周期逻辑还需要实机验证。
