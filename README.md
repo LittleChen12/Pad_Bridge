@@ -5,23 +5,23 @@
 iPad 端使用 [OpenDisplay](https://apps.apple.com/app/id6780264891)（Philip Poloczek）。
 
 [下载最新版本](https://github.com/LittleChen12/Pad_Bridge/releases/latest) ·
-[Windows 11 使用说明](docs/windows.md) · [开发与构建](CONTRIBUTING.md) · [0.3.3 发布说明](docs/releases/v0.3.3.md)
+[Windows 11 使用说明](docs/windows.md) · [开发与构建](CONTRIBUTING.md) · [0.3.4 发布说明](docs/releases/v0.3.4.md)
 
 本轮实现与实测数据见 [Windows 优化记录](docs/windows-optimization.md) 和
-[Linux 优化记录](docs/linux-optimization.md)。**v0.3.3** 修复 Windows 设置权限，支持最高 120 FPS 与强制帧率。
+[Linux 优化记录](docs/linux-optimization.md)。**v0.3.4** 修复 Windows 设置权限，支持直接设置最高 120 FPS。
 
 | 系统 | 下载 | 使用方式 |
 | --- | --- | --- |
-| Ubuntu 24.04 x86_64 / Xorg | [`.deb` 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.3/padbridge_0.3.3_amd64.deb) | 用 `apt install` 安装，从应用菜单启动 |
-| Windows 11 x64 | [EXE 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.3/padbridge-0.3.3-windows-x64-setup.exe) | 一次配置主程序、USB 和扩展组件；从开始菜单启动 |
-| Windows 便携使用 | [ZIP 压缩包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.3/padbridge-0.3.3-windows-x64.zip) | 适合已配置组件的电脑；完整解压后运行 |
+| Ubuntu 24.04 x86_64 / Xorg | [`.deb` 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.4/padbridge_0.3.4_amd64.deb) | 用 `apt install` 安装，从应用菜单启动 |
+| Windows 11 x64 | [EXE 安装包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.4/padbridge-0.3.4-windows-x64-setup.exe) | 一次配置主程序、USB 和扩展组件；从开始菜单启动 |
+| Windows 便携使用 | [ZIP 压缩包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.4/padbridge-0.3.4-windows-x64.zip) | 适合已配置组件的电脑；完整解压后运行 |
 
-[源码包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.3/padbridge-0.3.3-source.tar.gz)
-与 SHA-256 校验文件一并提供在 [v0.3.3 发布页](https://github.com/LittleChen12/Pad_Bridge/releases/tag/v0.3.3)。
+[源码包](https://github.com/LittleChen12/Pad_Bridge/releases/download/v0.3.4/padbridge-0.3.4-source.tar.gz)
+与 SHA-256 校验文件一并提供在 [v0.3.4 发布页](https://github.com/LittleChen12/Pad_Bridge/releases/tag/v0.3.4)。
 
 ## Windows 11
 
-下载 `padbridge-0.3.3-windows-x64-setup.exe`，双击按向导安装即可。
+下载 `padbridge-0.3.4-windows-x64-setup.exe`，双击按向导安装即可。
 默认安装到当前用户目录，自动创建开始菜单入口，可选桌面快捷方式。
 主程序运行库和扩展驱动已内置；缺少 Apple USB 通信组件时，向导自动从 Apple 官方获取并安装。
 首次补齐系统组件需要联网和管理员确认，无需另装 Python、iTunes 或手动下载组件。
@@ -48,7 +48,7 @@ Linux 安装包目标为 **Ubuntu 24.04、x86_64、Xorg 会话**。
 从 Releases 下载 `.deb` 后，在文件所在目录运行：
 
 ```bash
-sudo apt install ./padbridge_0.3.3_amd64.deb
+sudo apt install ./padbridge_0.3.4_amd64.deb
 ```
 
 安装后从应用菜单打开 **PadBridge**。安装包使用系统依赖，不包含设备 IP、用户设置或开发缓存。
@@ -85,7 +85,7 @@ Wi-Fi 需要同一局域网，并允许 OpenDisplay 的“本地网络”权限�
 ### 画面参数
 
 “画面设置”提供预设 / 自定义分辨率、Windows 15～120 FPS / Ubuntu 15～60 FPS、1～50 Mbps 或自动码率。
-Windows 勾选“强制目标帧率”后可向上报 60 FPS 的接收端发送 120 FPS；实际显示刷新率由 iPad 决定。
+Windows 按用户设置的目标帧率发送，设置 120 就发送 120，不需要额外开关；实际显示刷新率由 iPad 决定。
 参数在下次连接时应用并保存。
 
 - 自动原生：扩展使用 iPad 原生尺寸；镜像尽量使用主屏原始尺寸。

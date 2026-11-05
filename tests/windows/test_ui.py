@@ -54,12 +54,13 @@ def test_connection_error_remains_visible_across_status_refresh(window):
     assert window.connection.connect_button.isEnabled()
 
 
-def test_manual_120fps_override_survives_loading_and_saving(window):
-    video = VideoOptions(fps=120, force_fps=True)
-    window.video.load(video.to_dict())
+def test_120fps_survives_loading_and_saving_without_an_extra_switch(window):
+    video = VideoOptions(fps=120)
+    window.video.load({**video.to_dict(), 'force_fps': False})
     assert window.video.values() == video
     window.save_settings()
     assert ui.save_preferences.call_args.args[0]['video_options'] == video.to_dict()
+    assert not hasattr(window.video, 'force_fps')
 
 
 def test_live_worker_syncs_mode_and_locks_video_controls(window, monkeypatch):

@@ -114,31 +114,32 @@ def test_decode_budget_and_frame_rate_are_respected():
              'videoCaps': [{'codec': 'h264', 'maxWidth': 1920, 'maxHeight': 1200,
                             'maxFrameRate': 24, 'maxPixelsPerSecond': 1280*800*24}]}
     (width, height), fps = worker.stream_options(hello, MAIN, VideoOptions())
-    assert fps == 24
+    assert fps == 60
     assert width*height*fps <= 1280*800*24
     assert width <= 1920 and height <= 1200 and width % 2 == height % 2 == 0
     assert mirror_size(2560, 1600, bound=(1920, 1440)) == (1920, 1200)
 
 
-@pytest.mark.parametrize('panel,decoder,expected', [(120, 120, 120), (60, 120, 60), (120, 90, 90)])
-def test_high_refresh_negotiation_respects_panel_decoder_and_pixel_budget(panel, decoder, expected):
+@pytest.mark.parametrize('panel,decoder', [(120, 120), (60, 60), (120, 90)])
+def test_selected_120fps_is_used_regardless_of_receiver_fps_declaration(panel, decoder):
     hello = {**HELLO, 'displayMaxFrameRate': panel,
              'videoCaps': [{'codec': 'h264', 'maxFrameRate': decoder,
                             'maxPixelsPerSecond': 1920*1200*120}]}
     (width, height), fps = worker.stream_options(hello, MAIN, VideoOptions(fps=120))
-    assert fps == expected
+    assert fps == 120
     assert width*height*fps <= 1920*1200*120
 
 
-def test_high_refresh_without_receiver_advertisement_defaults_to_60():
-    assert worker.stream_options(HELLO, MAIN, VideoOptions(fps=120))[1] == 60
+@pytest.mark.parametrize('requested', [15, 24, 30, 60, 90, 120])
+def test_selected_frame_rate_is_preserved_without_receiver_advertisement(requested):
+    assert worker.stream_options(HELLO, MAIN, VideoOptions(fps=requested))[1] == requested
 
 
-def test_forced_120_ignores_both_fps_caps_but_keeps_decoder_size_and_throughput_limits():
+def test_120fps_preserves_decoder_size_and_throughput_limits_without_reducing_fps():
     hello = {**HELLO, 'displayMaxFrameRate': 60,
              'videoCaps': [{'codec': 'h264', 'maxFrameRate': 60, 'maxWidth': 1920,
                             'maxHeight': 1200, 'maxPixelsPerSecond': 1920*1200*60}]}
-    (width, height), fps = worker.stream_options(hello, MAIN, VideoOptions(fps=120, force_fps=True))
+    (width, height), fps = worker.stream_options(hello, MAIN, VideoOptions(fps=120))
     assert fps == 120
     assert width <= 1920 and height <= 1200
     assert width*height*fps <= 1920*1200*60

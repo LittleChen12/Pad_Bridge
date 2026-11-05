@@ -84,8 +84,6 @@ def start(transport=None, address=None, display_mode=None, video=None, monitor=N
                     '--display-mode', display_mode, '--display-position', display_position,
                     '--resolution', video.resolution,
                     '--fps', str(video.fps), '--bitrate', str(video.bitrate_mbps)]
-        if video.force_fps:
-            command.append('--force-fps')
         if target['monitor']:
             command += ['--monitor', target['monitor']]
         if transport == 'wifi':

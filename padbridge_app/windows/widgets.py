@@ -3,7 +3,7 @@
 from PySide6.QtCore import QByteArray, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
-from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QCheckBox, QComboBox, QFrame, QGridLayout,
+from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QComboBox, QFrame, QGridLayout,
                                QHBoxLayout, QLabel, QLineEdit, QPushButton,
                                QSpinBox, QVBoxLayout, QWidget)
 from ..video import VideoOptions
@@ -246,19 +246,15 @@ class VideoPanel:
         self.custom = row(self.width, label('×'), self.height, label('像素', 'muted'), None, spacing=8)
         grid.addWidget(self.custom, 1, 1)
         self.fps = self.spin(15, 120, 1, '目标帧率')
-        self.fps.setToolTip('默认按 iPad 上报的上限协商；可开启强制目标帧率来尝试 120 FPS。')
+        self.fps.setToolTip('按所选目标帧率发送；实际帧率受电脑性能和连接状况影响。')
         grid.addWidget(label('目标帧率', 'field-label'), 2, 0)
         grid.addWidget(row(self.fps, label('FPS', 'muted'), None), 2, 1)
-        self.force_fps = QCheckBox('强制目标帧率')
-        self.force_fps.setToolTip('忽略接收端声明的帧率上限，按设置值发送；实际显示帧率由 iPad 决定。')
-        self.force_row = row(self.force_fps, label('实验性 · 可向 60 FPS 接收端发送 120 FPS', 'muted'), None)
-        grid.addWidget(self.force_row, 3, 0, 1, 2)
         self.auto = Switch()
-        grid.addWidget(label('自动码率', 'field-label'), 4, 0)
-        grid.addWidget(row(self.auto, label('USB 24 · Wi-Fi 10 Mbps', 'muted'), None), 4, 1)
+        grid.addWidget(label('自动码率', 'field-label'), 3, 0)
+        grid.addWidget(row(self.auto, label('USB 24 · Wi-Fi 10 Mbps', 'muted'), None), 3, 1)
         self.bitrate = self.spin(1, 50, 1, '手动码率')
         self.manual = row(self.bitrate, label('Mbps · 1–50', 'muted'), None)
-        grid.addWidget(self.manual, 5, 1)
+        grid.addWidget(self.manual, 4, 1)
         layout.addWidget(self.controls)
         self.hint = label('画面等比缩放，保留电脑显示设置；扩展屏尺寸在 Windows 显示设置中调整。', 'hint', True)
         layout.addWidget(self.hint)
@@ -270,7 +266,6 @@ class VideoPanel:
         for item in (self.width, self.height, self.fps, self.bitrate):
             item.valueChanged.connect(changed)
         self.auto.toggled.connect(changed)
-        self.force_fps.toggled.connect(changed)
 
     @staticmethod
     def spin(minimum, maximum, step, name):
@@ -289,7 +284,6 @@ class VideoPanel:
         self.width.setValue(width)
         self.height.setValue(height)
         self.fps.setValue(video.fps)
-        self.force_fps.setChecked(video.force_fps)
         self.auto.setChecked(video.bitrate_mbps == 0)
         self.bitrate.setValue(video.bitrate_mbps or 10)
         self.update_visibility()
@@ -298,8 +292,7 @@ class VideoPanel:
         value = self.resolution.currentData()
         if value == 'custom':
             value = f'{self.width.value()}x{self.height.value()}'
-        return VideoOptions(value, self.fps.value(), 0 if self.auto.isChecked() else self.bitrate.value(),
-                            self.force_fps.isChecked())
+        return VideoOptions(value, self.fps.value(), 0 if self.auto.isChecked() else self.bitrate.value())
 
     def update_visibility(self):
         self.custom.setVisible(self.resolution.currentData() == 'custom')

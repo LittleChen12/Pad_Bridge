@@ -228,14 +228,9 @@ class Window(QMainWindow):
             video = VideoOptions.from_dict(facts.get('video_options'))
             rate = video.bitrate(facts.get('transport', 'usb'))/1000
             detail = f'{width} × {height} · {facts.get("target_fps", 60)} FPS · {rate:g} Mbps（目标）'
-            requested = video.fps
             actual = facts.get('actual_fps')
             if isinstance(actual, (int, float)) and actual > 0:
                 detail += f'\n实际发送 {actual:g} FPS'
-            if video.force_fps:
-                detail += f' · 强制模式（接收端上报 {facts.get("receiver_max_fps", 60)} FPS）'
-            if facts.get('target_fps', requested) < requested:
-                detail += f'\n已按 iPad 接收能力调整（设置为 {requested} FPS）'
             refresh = facts.get('display_refresh_hz')
             if refresh and refresh < facts.get('target_fps', 60):
                 detail += f'\n采集屏幕为 {refresh} Hz，新画面更新受该刷新率限制'

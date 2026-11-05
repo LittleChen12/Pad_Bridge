@@ -44,15 +44,10 @@ def receiver_fps_limit(hello):
     return max(1, min(rate, int(limits.max_fps or rate)))
 
 
-def negotiated_fps(hello, video):
-    limit = receiver_fps_limit(hello)
-    return video.fps if video.force_fps else min(video.fps, limit)
-
-
 def stream_options(hello, monitor, video):
+    receiver_fps_limit(hello)  # Validate capabilities; their FPS is diagnostic only.
     limits = protocol.decode_limits(hello)
-    fps = negotiated_fps(hello, video)
-    return mirror_size(monitor.w, monitor.h, limits, video.size, fps), fps
+    return mirror_size(monitor.w, monitor.h, limits, video.size, video.fps), video.fps
 
 
 def stream(sock, stopped, target, video, publish, virtual=None, layout_history=None):
@@ -134,7 +129,8 @@ def stream(sock, stopped, target, video, publish, virtual=None, layout_history=N
             if now >= next_check:
                 if virtual:
                     panel = protocol.panel_pixels(hello)
-                    current = virtual.attach(video.size or tuple(panel), negotiated_fps(hello, video))
+                    receiver_fps_limit(hello)
+                    current = virtual.attach(video.size or tuple(panel), video.fps)
                 else:
                     current = desktop.choose_monitor(target['display_mode'], target.get('monitor', ''))
                 size, fps = stream_options(hello, current, video)

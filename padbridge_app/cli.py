@@ -32,9 +32,11 @@ def main():
     parser.add_argument('--address', help='iPad 局域网 IP[:端口]；Wi-Fi 模式可留空自动搜索')
     parser.add_argument('--display-mode', choices=('extend', 'mirror'), help='扩展屏幕或镜像主屏')
     parser.add_argument('--resolution', help='native 或横屏宽x高；镜像时作为等比缩放上限')
-    parser.add_argument('--fps', type=int, help='目标帧率，15～120；受接收端能力限制')
+    parser.add_argument('--fps', type=int, help='目标帧率，Windows 15～120 / Ubuntu 界面 15～60')
+    # Accept the short-lived 0.3.3 switches for existing scripts; Windows now
+    # always uses the selected target, so these no longer change behavior.
     parser.add_argument('--force-fps', action=argparse.BooleanOptionalAction, default=None,
-                        help='Windows：强制目标帧率，忽略接收端声明的帧率上限')
+                        help=argparse.SUPPRESS)
     parser.add_argument('--bitrate', type=int, help='目标码率 Mbps，1～50；0 为 USB 24 / Wi-Fi 10')
     parser.add_argument('--monitor', help='Windows 扩展模式的显示器名称（monitors 命令查询）')
     parser.add_argument('--display-position', choices=('left', 'right'),
@@ -48,8 +50,6 @@ def main():
     parser.add_argument('--setup-log-dir', help=argparse.SUPPRESS)
     parser.add_argument('--caller-sid', help=argparse.SUPPRESS)
     args = parser.parse_args()
-    if args.force_fps and not WINDOWS:
-        parser.error('--force-fps 目前仅支持 Windows。')
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
     if WINDOWS and args.command in ('repair-preferences', 'install-display-driver'):
         from .windows.installation import prepare_system_helper
@@ -78,7 +78,7 @@ def main():
             prepare()
         data = preferences()['video_options'] if args.command == 'start' else VideoOptions().to_dict()
         for key, value in (('resolution', args.resolution), ('fps', args.fps),
-                           ('bitrate_mbps', args.bitrate), ('force_fps', args.force_fps)):
+                           ('bitrate_mbps', args.bitrate)):
             if value is not None:
                 data[key] = value
         video = VideoOptions.from_dict(data)

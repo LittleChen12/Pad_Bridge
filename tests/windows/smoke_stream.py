@@ -28,7 +28,6 @@ def main():
     parser.add_argument('--display-position', choices=('left', 'right'), default='right',
                         help='Check the default side of an automatically created virtual screen')
     parser.add_argument('--fps', type=int, default=30, choices=(30, 60, 90, 120))
-    parser.add_argument('--force-fps', action='store_true')
     parser.add_argument('--receiver-fps', type=int, help='Receiver-advertised ceiling; defaults to requested FPS')
     parser.add_argument('--seconds', type=float, default=0,
                         help='Minimum duration of each connection, for throughput measurements')
@@ -52,9 +51,9 @@ def main():
             if args.executable:
                 command('start', '--transport', 'wifi', '--address', address, '--display-mode', mode,
                         '--monitor', 'auto', '--resolution', resolution, '--fps', str(args.fps), '--bitrate', '3',
-                        '--display-position', args.display_position, *(['--force-fps'] if args.force_fps else []))
+                        '--display-position', args.display_position)
                 return json.loads(command('status'))
-            return service.start('wifi', address, mode, VideoOptions(resolution, args.fps, 3, args.force_fps), monitor='auto',
+            return service.start('wifi', address, mode, VideoOptions(resolution, args.fps, 3), monitor='auto',
                                  display_position=args.display_position)
         original = desktop.monitors()
         if args.virtual:

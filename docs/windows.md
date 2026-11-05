@@ -1,10 +1,10 @@
 # Windows 11 使用与开发
 
-0.3.3 修复个人设置权限并提供最高 120 FPS，沿用主程序、USB 与扩展组件的一体安装流程。
+0.3.4 修复个人设置权限并提供最高 120 FPS，沿用主程序、USB 与扩展组件的一体安装流程。
 
 ## 启动
 
-推荐下载 `padbridge-0.3.3-windows-x64-setup.exe`，双击打开简体中文/英文安装向导。
+推荐下载 `padbridge-0.3.4-windows-x64-setup.exe`，双击打开简体中文/英文安装向导。
 默认安装到 `%LOCALAPPDATA%\Programs\PadBridge`，自动创建开始菜单入口，桌面快捷方式可选。
 Python、Qt、编码库和签名虚拟显示驱动已经包含在安装包中。
 向导自动检查 USB 与扩展组件；缺少 USB 支持时自动从 Apple 官方下载并安装通信组件（约 39 MB）。
@@ -19,7 +19,7 @@ Python、Qt、编码库和签名虚拟显示驱动已经包含在安装包中。
 可从 Windows“设置 → 应用 → 已安装的应用 → PadBridge”卸载；卸载保留用户设置和用户自行添加的文件。
 Apple 通信组件、虚拟显示驱动以及显卡程序配置属于单独管理的组件，不随主应用卸载。
 
-便携使用可下载 `padbridge-0.3.3-windows-x64.zip`，适合已经配置组件的电脑。
+便携使用可下载 `padbridge-0.3.4-windows-x64.zip`，适合已经配置组件的电脑。
 完整解压后双击 `PadBridge/PadBridge.exe`，保留同目录 `_internal` 文件夹。
 首次使用推荐 EXE；ZIP 用户可以直接改用安装版，设置继续共用；旧目录不会自动删除。
 安装版程序位置与便携版不同，已有 NVIDIA 程序电源设置需指向新 EXE 路径。
@@ -60,9 +60,9 @@ Bonjour 发现由 Python zeroconf 实现，不依赖 Avahi / D-Bus。网络阻�
 启动时请求一次 Windows 管理员确认，只修复当前账户的 PadBridge 个人设置目录。
 不会清空设置，也不会让后续界面和串流长期以管理员身份运行。
 
-画面设置可选 15～120 FPS，默认 60。默认按 iPad 声明的屏幕与解码帧率协商。
-需要忽略声明时勾选“强制目标帧率”：选择 120 后，即使接收端上报 60，也按 120 发送。
-解码尺寸和像素吞吐上限继续生效；状态卡会显示实际发送帧率与接收端声明。
+画面设置可选 15～120 FPS，默认 60。设置 120 就按 120 发送，设置 60 就按 60 发送，
+不需要额外开关，也不会因接收端声明较低帧率而自动改写目标。
+解码尺寸和像素吞吐上限通过缩放视频满足；状态卡显示所选目标和实际发送帧率。
 
 自建扩展屏会选择 60/90/120 Hz 中足以承载目标的模式，旧配置只追加缺少的刷新率，
 保留已有分辨率和其他选项。镜像和借用已有副屏保持用户刷新率，低于发送目标时会提示。
@@ -70,7 +70,7 @@ Bonjour 发现由 Python zeroconf 实现，不依赖 Avahi / D-Bus。网络阻�
 
 ## 功能范围
 
-| 功能 | Windows 0.3.3 |
+| 功能 | Windows 0.3.4 |
 | --- | --- |
 | 主屏镜像 | 支持，不修改分辨率/布局 |
 | 已有扩展桌面 | 命令行通过 `--monitor` 选择已启用的非主屏，含可被 GDI 采集的虚拟屏 |
@@ -133,7 +133,7 @@ OpenDisplay TCP 协议没有加密或认证，只用于可信局域网。
 .\padbridge.cmd install-display-driver --interactive
 .\padbridge.cmd start --display-mode mirror --transport wifi --address 192.168.1.20 --resolution 1920x1080 --fps 30
 .\padbridge.cmd start --display-mode extend --monitor '\\.\DISPLAY2' --transport usb
-.\padbridge.cmd start --display-mode extend --monitor auto --transport usb --fps 120 --force-fps
+.\padbridge.cmd start --display-mode extend --monitor auto --transport usb --fps 120
 .\padbridge.cmd start --display-mode extend --monitor auto --transport usb --display-position left
 .\padbridge.cmd status
 .\padbridge.cmd stop
