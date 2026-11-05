@@ -17,9 +17,12 @@ def prepare_system_helper():
         kernel.SetDllDirectoryW.argtypes = [ctypes.c_wchar_p]
         if not kernel.SetDllDirectoryW(None):
             raise ctypes.WinError(ctypes.get_last_error())
-        bundle = Path(sys._MEIPASS).resolve()
+        # PATH may contain another application's inaccessible junction. Only
+        # compare path strings here; resolving every entry can fail under a
+        # normal token before the component check has even started (WinError 448).
+        bundle = Path(sys._MEIPASS).absolute()
         os.environ['PATH'] = os.pathsep.join(part for part in os.environ.get('PATH', '').split(os.pathsep)
-                                           if not Path(part).resolve().is_relative_to(bundle))
+                                           if not Path(part).absolute().is_relative_to(bundle))
 
 
 @contextmanager
