@@ -101,6 +101,7 @@ def main():
                         announced = None
                         video_seen = False
                         refreshed = False
+                        renegotiated = False
                         began = time.monotonic()
                         deadline = began + max(18, args.seconds + 10)
                         while time.monotonic() < deadline:
@@ -132,7 +133,8 @@ def main():
                                     idrs += bool(frame.key_frame)
                                 if frame_count == 5:
                                     peer.sendall(protocol.encode_control({'type': 'kf'}))
-                                if connection == 0 and frame_count == 12:
+                                if connection == 0 and frame_count >= 12 and refreshed and not renegotiated:
+                                    renegotiated = True
                                     peer.sendall(protocol.encode_control({**hello, 'maxEncodeWide': 320, 'maxEncodeHigh': 200}))
                                 if frame_count >= 26 and idrs >= 2 and time.monotonic()-began >= args.seconds:
                                     state = service.current_status()
