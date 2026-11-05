@@ -26,6 +26,7 @@ def isolated(monkeypatch):
     monkeypatch.setattr(c, 'wait_for_usb', lambda: True)
     monkeypatch.setattr(c.subprocess, 'run', Mock(return_value=SimpleNamespace(returncode=0)))
     monkeypatch.setattr(c.driver_setup, 'install', Mock())
+    monkeypatch.setattr(c.driver_setup, 'high_refresh_ready', lambda: True)
 
 
 def display_ready(monkeypatch):

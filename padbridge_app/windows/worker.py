@@ -33,7 +33,7 @@ def validate_hello(hello, expected_id=''):
     return hello
 
 
-def stream_options(hello, monitor, video):
+def receiver_fps_limit(hello):
     limits = protocol.decode_limits(hello)
     for limit in limits:
         if limit is not None and (not math.isfinite(limit) or limit < 1):
@@ -41,7 +41,17 @@ def stream_options(hello, monitor, video):
     rate = hello.get('displayMaxFrameRate', 60)
     if type(rate) is not int or rate < 1:
         rate = 60
-    fps = max(1, min(video.fps, rate, int(limits.max_fps or video.fps)))
+    return max(1, min(rate, int(limits.max_fps or rate)))
+
+
+def negotiated_fps(hello, video):
+    limit = receiver_fps_limit(hello)
+    return video.fps if video.force_fps else min(video.fps, limit)
+
+
+def stream_options(hello, monitor, video):
+    limits = protocol.decode_limits(hello)
+    fps = negotiated_fps(hello, video)
     return mirror_size(monitor.w, monitor.h, limits, video.size, fps), fps
 
 
@@ -124,7 +134,7 @@ def stream(sock, stopped, target, video, publish, virtual=None, layout_history=N
             if now >= next_check:
                 if virtual:
                     panel = protocol.panel_pixels(hello)
-                    current = virtual.attach(video.size or tuple(panel))
+                    current = virtual.attach(video.size or tuple(panel), negotiated_fps(hello, video))
                 else:
                     current = desktop.choose_monitor(target['display_mode'], target.get('monitor', ''))
                 size, fps = stream_options(hello, current, video)
@@ -157,6 +167,8 @@ def stream(sock, stopped, target, video, publish, virtual=None, layout_history=N
                         problem='正在同步 iPad 画面比例…' if reset_layout else '',
                         encoder=encoder.name, capture_monitor=source.name,
                         capture_size=[source.w, source.h], stream_size=list(size), target_fps=fps,
+                        display_refresh_hz=desktop.refresh_rate(source.name),
+                        receiver_max_fps=receiver_fps_limit(hello),
                         receiver_panel=list(protocol.panel_pixels(hello)),
                         actual_fps=actual_fps, encoder_input_format=encoder.input_format,
                         capture_backend=capture.backend, receiver_stats=receiver_stats,

@@ -36,7 +36,10 @@ def preferences():
 
 
 def save_preferences(data):
-    PREFERENCES.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+    # Python 3.13 implements 0700 on Windows using OWNER RIGHTS. An elevated
+    # process may have Administrators as owner, locking out the same user's
+    # normal token. Inherit the per-user AppData ACL instead; keep Unix private.
+    PREFERENCES.parent.mkdir(parents=True, mode=0o777 if WINDOWS else 0o700, exist_ok=True)
     fd, temporary = tempfile.mkstemp(dir=PREFERENCES.parent, prefix='.connection-')
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as stream:

@@ -56,6 +56,12 @@ def start(transport=None, address=None, display_mode=None, video=None, monitor=N
         if automatic:
             if not virtual_display.available():
                 raise RuntimeError('扩展屏幕需要虚拟显示组件，请先点击“安装扩展组件”。')
+            if video.fps > 60:
+                from . import driver_setup, elevation
+                if not driver_setup.high_refresh_ready():
+                    elevation.run(['install-display-driver', '--interactive'])
+                    if not driver_setup.high_refresh_ready():
+                        raise RuntimeError('120 Hz 扩展组件尚未就绪，请重新运行安装器修复。')
             screen = None
         else:
             screen = desktop.choose_monitor(display_mode, monitor)
@@ -78,6 +84,8 @@ def start(transport=None, address=None, display_mode=None, video=None, monitor=N
                     '--display-mode', display_mode, '--display-position', display_position,
                     '--resolution', video.resolution,
                     '--fps', str(video.fps), '--bitrate', str(video.bitrate_mbps)]
+        if video.force_fps:
+            command.append('--force-fps')
         if target['monitor']:
             command += ['--monitor', target['monitor']]
         if transport == 'wifi':

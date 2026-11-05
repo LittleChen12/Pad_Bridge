@@ -74,6 +74,14 @@ def choose_monitor(mode='mirror', name='', available=None):
     return choices[0]
 
 
+def refresh_rate(name):
+    from .virtual_display import DevMode, api
+    mode = DevMode(size=ct.sizeof(DevMode))
+    if api().EnumDisplaySettingsExW(name, 0xFFFFFFFF, ct.byref(mode), 0):
+        return mode.frequency if mode.frequency > 1 else None
+    return None
+
+
 class BitmapInfo(ct.Structure):
     _fields_ = [('size', wt.DWORD), ('width', wt.LONG), ('height', wt.LONG),
                 ('planes', wt.WORD), ('bit_count', wt.WORD), ('compression', wt.DWORD),

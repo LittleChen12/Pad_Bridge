@@ -82,15 +82,21 @@ def available():
     return device_control.ready() and device_control.owned_device() is not None
 
 
-def modes(name):
+def modes(name, refresh=60):
     user = api()
     found = {}
     for index in range(1024):
         mode = DevMode(size=ct.sizeof(DevMode))
         if not user.EnumDisplaySettingsExW(name, index, ct.byref(mode), 0):
             break
-        if mode.bits == 32 and mode.frequency == 60:
-            found[(mode.width, mode.height)] = mode
+        if mode.bits == 32 and mode.frequency > 1:
+            size = (mode.width, mode.height)
+            previous = found.get(size)
+            # Lowest supported rate at or above the stream target; otherwise
+            # the highest available. 24/30/60 FPS keep the usual 60 Hz mode.
+            score = lambda m: (m.frequency < refresh, abs(m.frequency - refresh))
+            if previous is None or score(mode) < score(previous):
+                found[size] = mode
     return found
 
 
@@ -119,7 +125,8 @@ def apply_mode(adapter, mode):
     name, active, shared, _ = display_config.current()
     if active and not shared and any(m.name == name and m.primary for m in desktop.monitors()):
         raise RuntimeError('虚拟屏已被设为主屏，已保留用户布局。')
-    display_config.apply(mode.width, mode.height, mode.position.x, mode.position.y)
+    display_config.apply(mode.width, mode.height, mode.position.x, mode.position.y,
+                         refresh=mode.frequency or 60)
 
 
 def detach(adapter):
@@ -172,12 +179,13 @@ class VirtualDisplay:
         self.adapter = None
         self.monitor_name = None
         self.size = None
+        self.requested_refresh = 60
         self.borrowed = False
 
-    def attach(self, wanted):
+    def attach(self, wanted, refresh=60):
         # The stream checks geometry once a second. Stable sessions need only
         # the active-monitor list, not PnP/CCD enumeration on the video thread.
-        if self.adapter is not None and (self.borrowed or self.size == wanted):
+        if self.adapter is not None and (self.borrowed or (self.size == wanted and self.requested_refresh == refresh)):
             for monitor in desktop.monitors():
                 if monitor.name == self.monitor_name and not monitor.primary:
                     return monitor
@@ -203,10 +211,10 @@ class VirtualDisplay:
         if adapter.primary:
             raise RuntimeError('虚拟屏当前是主屏，请先在“排列屏幕”中恢复电脑主屏。')
         name, active, shared, path = current
-        if not self.borrowed and (not active or shared or self.size != wanted):
-            choices = modes(adapter.name)
+        if not self.borrowed and (not active or shared or self.size != wanted or self.requested_refresh != refresh):
+            choices = modes(adapter.name, refresh)
             if not choices:
-                raise RuntimeError('虚拟显示驱动没有提供可用的 60 Hz 模式。')
+                raise RuntimeError('虚拟显示驱动没有提供可用模式，请更新扩展组件。')
             chosen = choose_size(choices, wanted)
             mode = choices[chosen]
             screens = desktop.monitors()
@@ -225,6 +233,7 @@ class VirtualDisplay:
             apply_mode(adapter, mode)
             self.placed_at = None if manual else point
             self.size = wanted
+            self.requested_refresh = refresh
             name = display_config.current()[0]
         self.adapter = adapter
         self.monitor_name = name
@@ -243,4 +252,5 @@ class VirtualDisplay:
         self.placed_at = None
         self.monitor_name = None
         self.size = None
+        self.requested_refresh = 60
         self.borrowed = False

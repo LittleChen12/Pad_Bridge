@@ -3,8 +3,23 @@
 from contextlib import contextmanager
 import ctypes
 from ctypes import wintypes
+import os
+from pathlib import Path
+import sys
 
 APP_MUTEX = r'Local\LittleChen12.PadBridge.Running'
+
+
+def prepare_system_helper():
+    """Only in short-lived helpers: do not leak bundled DLLs to system tools."""
+    if getattr(sys, 'frozen', False):
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.SetDllDirectoryW.argtypes = [ctypes.c_wchar_p]
+        if not kernel.SetDllDirectoryW(None):
+            raise ctypes.WinError(ctypes.get_last_error())
+        bundle = Path(sys._MEIPASS).resolve()
+        os.environ['PATH'] = os.pathsep.join(part for part in os.environ.get('PATH', '').split(os.pathsep)
+                                           if not Path(part).resolve().is_relative_to(bundle))
 
 
 @contextmanager

@@ -1,10 +1,10 @@
 # Windows 11 使用与开发
 
-0.3.2 把 Windows 11 x64 主程序、USB 通信与扩展屏幕组件整合进一个安装流程。
+0.3.3 修复个人设置权限并提供最高 120 FPS，沿用主程序、USB 与扩展组件的一体安装流程。
 
 ## 启动
 
-推荐下载 `padbridge-0.3.2-windows-x64-setup.exe`，双击打开简体中文/英文安装向导。
+推荐下载 `padbridge-0.3.3-windows-x64-setup.exe`，双击打开简体中文/英文安装向导。
 默认安装到 `%LOCALAPPDATA%\Programs\PadBridge`，自动创建开始菜单入口，桌面快捷方式可选。
 Python、Qt、编码库和签名虚拟显示驱动已经包含在安装包中。
 向导自动检查 USB 与扩展组件；缺少 USB 支持时自动从 Apple 官方下载并安装通信组件（约 39 MB）。
@@ -19,7 +19,7 @@ Python、Qt、编码库和签名虚拟显示驱动已经包含在安装包中。
 可从 Windows“设置 → 应用 → 已安装的应用 → PadBridge”卸载；卸载保留用户设置和用户自行添加的文件。
 Apple 通信组件、虚拟显示驱动以及显卡程序配置属于单独管理的组件，不随主应用卸载。
 
-便携使用可下载 `padbridge-0.3.2-windows-x64.zip`，适合已经配置组件的电脑。
+便携使用可下载 `padbridge-0.3.3-windows-x64.zip`，适合已经配置组件的电脑。
 完整解压后双击 `PadBridge/PadBridge.exe`，保留同目录 `_internal` 文件夹。
 首次使用推荐 EXE；ZIP 用户可以直接改用安装版，设置继续共用；旧目录不会自动删除。
 安装版程序位置与便携版不同，已有 NVIDIA 程序电源设置需指向新 EXE 路径。
@@ -54,9 +54,23 @@ Windows USB 使用 Apple 本机 usbmux TCP 服务 `127.0.0.1:27015`；Wi-Fi 不�
 Bonjour 发现由 Python zeroconf 实现，不依赖 Avahi / D-Bus。网络阻止 mDNS 时可手动填写地址。
 本机软件不自动修改 Windows 防火墙规则。
 
+## 设置权限与高帧率
+
+普通启动即可保存画面设置。如果旧版管理员启动创建了无法写入的配置目录，新版会在首次
+启动时请求一次 Windows 管理员确认，只修复当前账户的 PadBridge 个人设置目录。
+不会清空设置，也不会让后续界面和串流长期以管理员身份运行。
+
+画面设置可选 15～120 FPS，默认 60。默认按 iPad 声明的屏幕与解码帧率协商。
+需要忽略声明时勾选“强制目标帧率”：选择 120 后，即使接收端上报 60，也按 120 发送。
+解码尺寸和像素吞吐上限继续生效；状态卡会显示实际发送帧率与接收端声明。
+
+自建扩展屏会选择 60/90/120 Hz 中足以承载目标的模式，旧配置只追加缺少的刷新率，
+保留已有分辨率和其他选项。镜像和借用已有副屏保持用户刷新率，低于发送目标时会提示。
+物理屏幕刷新率、采集/编码性能、USB/Wi-Fi 带宽仍会影响最终效果；发送 120 不等于显示 120。
+
 ## 功能范围
 
-| 功能 | Windows 0.3.2 |
+| 功能 | Windows 0.3.3 |
 | --- | --- |
 | 主屏镜像 | 支持，不修改分辨率/布局 |
 | 已有扩展桌面 | 命令行通过 `--monitor` 选择已启用的非主屏，含可被 GDI 采集的虚拟屏 |
@@ -76,7 +90,8 @@ Bonjour 发现由 Python zeroconf 实现，不依赖 Avahi / D-Bus。网络阻�
 只启停本程序安装并记录的 `Root\MttVDD` 设备；每次操作重新校验设备实例与硬件标识。
 辅助脚本和设备记录存放在 `%ProgramFiles%\PadBridge\DisplayControl`，仅管理员和 SYSTEM 可写，
 普通权限的 PadBridge 可运行这两个固定任务，日常连接无需再次提权。任务不执行项目目录中的代码。
-已有旧版扩展组件需以管理员身份重新点击一次“安装扩展组件”，更新启停功能，无需重装驱动。
+旧版扩展组件由安装器自动升级；源码 / 便携用户首次选择超过 60 FPS 时按需请求一次管理员确认，
+补充刷新率配置，无需重新安装驱动。“安装扩展组件”也会自行请求管理员确认，不必以管理员启动整个应用。
 程序通过 Windows 显示配置 API 将虚拟目标从默认复制状态拆分为独立副屏，保留物理屏模式。
 新建副屏按所选方向放在电脑桌面左侧或右侧，与主屏顶部对齐；已有多屏时放在对应侧外沿，避免重叠。
 连接期间通过“排列屏幕”手动调整的位置会保留；断开重建时再应用保存的默认位置。
@@ -105,7 +120,7 @@ NVENC 使用 P4、逐步帧内刷新和四帧码率预算，避免原生分辨�
 同一比例下的正常连接不重复执行，也不需要手动再断开一次。
 采集当前交互桌面；锁屏、安全桌面、受保护视频及某些远程/虚拟显示驱动可能无法采集。
 触控不能控制高于 PadBridge 权限等级的窗口。缩放及兼容编码路径仍使用 CPU；
-15～60 FPS 是目标值，高分辨率性能取决于机器。音频、剪贴板、键盘输入、Pencil 压感尚未实现。
+15～120 FPS 是目标值，高分辨率性能取决于机器。音频、剪贴板、键盘输入、Pencil 压感尚未实现。
 OpenDisplay TCP 协议没有加密或认证，只用于可信局域网。
 
 ## 命令与数据
@@ -118,6 +133,7 @@ OpenDisplay TCP 协议没有加密或认证，只用于可信局域网。
 .\padbridge.cmd install-display-driver --interactive
 .\padbridge.cmd start --display-mode mirror --transport wifi --address 192.168.1.20 --resolution 1920x1080 --fps 30
 .\padbridge.cmd start --display-mode extend --monitor '\\.\DISPLAY2' --transport usb
+.\padbridge.cmd start --display-mode extend --monitor auto --transport usb --fps 120 --force-fps
 .\padbridge.cmd start --display-mode extend --monitor auto --transport usb --display-position left
 .\padbridge.cmd status
 .\padbridge.cmd stop

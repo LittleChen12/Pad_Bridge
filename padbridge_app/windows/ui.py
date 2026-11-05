@@ -225,8 +225,20 @@ class Window(QMainWindow):
         if kind == 'streaming':
             title = '镜像已连接' if panel.mode.get() == 'mirror' else '扩展屏已连接'
             width, height = facts.get('stream_size', [0, 0])
-            rate = VideoOptions.from_dict(facts.get('video_options')).bitrate(facts.get('transport', 'usb'))/1000
+            video = VideoOptions.from_dict(facts.get('video_options'))
+            rate = video.bitrate(facts.get('transport', 'usb'))/1000
             detail = f'{width} × {height} · {facts.get("target_fps", 60)} FPS · {rate:g} Mbps（目标）'
+            requested = video.fps
+            actual = facts.get('actual_fps')
+            if isinstance(actual, (int, float)) and actual > 0:
+                detail += f'\n实际发送 {actual:g} FPS'
+            if video.force_fps:
+                detail += f' · 强制模式（接收端上报 {facts.get("receiver_max_fps", 60)} FPS）'
+            if facts.get('target_fps', requested) < requested:
+                detail += f'\n已按 iPad 接收能力调整（设置为 {requested} FPS）'
+            refresh = facts.get('display_refresh_hz')
+            if refresh and refresh < facts.get('target_fps', 60):
+                detail += f'\n采集屏幕为 {refresh} Hz，新画面更新受该刷新率限制'
             if panel.mode.get() == 'mirror':
                 detail += '\n保留主屏设置，iPad 等比显示'
         else:
@@ -297,12 +309,13 @@ class Window(QMainWindow):
         self.work(service.stop, '正在断开连接')
 
     def install_extension(self):
-        from .driver_setup import install
+        from . import elevation
         def installed(_):
             self.error_message = ''
             self.refresh_extension()
             self.connection.detail.setText('扩展组件已就绪，请点击“连接 iPad”。')
-        self.work(lambda: install(interactive=True), '正在安装扩展组件，请留意 Windows 确认窗口', installed)
+        self.work(lambda: elevation.run(['install-display-driver', '--interactive']),
+                  '正在安装扩展组件，请留意 Windows 确认窗口', installed)
 
     def search(self):
         def found(receivers):
@@ -395,6 +408,13 @@ def run():
     app.setQuitOnLastWindowClosed(False)
     app.setStyle('Fusion')
     app.setFont(QFont('Microsoft YaHei UI', 10))
+    from . import user_config
+    try:
+        user_config.prepare()
+    except Exception as exc:
+        log.exception('个人设置权限修复未完成')
+        QMessageBox.critical(None, 'PadBridge', '无法读写个人设置。旧版权限修复需要一次 Windows 管理员确认。\n' + str(exc))
+        return 1
     window = Window()
     signal.signal(signal.SIGINT, lambda *_: window.request_quit())
     window.show()

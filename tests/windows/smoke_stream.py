@@ -27,6 +27,11 @@ def main():
                         help='Require Windows Graphics Capture before and after reconnect')
     parser.add_argument('--display-position', choices=('left', 'right'), default='right',
                         help='Check the default side of an automatically created virtual screen')
+    parser.add_argument('--fps', type=int, default=30, choices=(30, 60, 90, 120))
+    parser.add_argument('--force-fps', action='store_true')
+    parser.add_argument('--receiver-fps', type=int, help='Receiver-advertised ceiling; defaults to requested FPS')
+    parser.add_argument('--seconds', type=float, default=0,
+                        help='Minimum duration of each connection, for throughput measurements')
     args = parser.parse_args()
     import av
     from odx11 import protocol
@@ -46,10 +51,10 @@ def main():
         def start(address):
             if args.executable:
                 command('start', '--transport', 'wifi', '--address', address, '--display-mode', mode,
-                        '--monitor', 'auto', '--resolution', resolution, '--fps', '30', '--bitrate', '3',
-                        '--display-position', args.display_position)
+                        '--monitor', 'auto', '--resolution', resolution, '--fps', str(args.fps), '--bitrate', '3',
+                        '--display-position', args.display_position, *(['--force-fps'] if args.force_fps else []))
                 return json.loads(command('status'))
-            return service.start('wifi', address, mode, VideoOptions(resolution, 30, 3), monitor='auto',
+            return service.start('wifi', address, mode, VideoOptions(resolution, args.fps, 3, args.force_fps), monitor='auto',
                                  display_position=args.display_position)
         original = desktop.monitors()
         if args.virtual:
@@ -61,13 +66,15 @@ def main():
         server.settimeout(15)
         endpoint = server.getsockname()
         hello = {'type': 'hello', 'pv': 3, 'id': 'loopback-smoke', 'device': 'Test receiver',
-                 'pixelsWide': 2224, 'pixelsHigh': 1668, 'displayMaxFrameRate': 30}
+                 'pixelsWide': 2224, 'pixelsHigh': 1668, 'displayMaxFrameRate': args.receiver_fps or args.fps,
+                 'videoCaps': [{'codec': 'h264', 'maxFrameRate': args.receiver_fps or args.fps}]}
         complete = threading.Event()
         errors, decoded_sizes, controls, counts = [], set(), set(), []
         withdrawn = []
         layout_refreshes = []
         capture_backends = []
         positions = []
+        measurements = []
 
         def exact(peer, length):
             data = bytearray()
@@ -94,7 +101,8 @@ def main():
                         announced = None
                         video_seen = False
                         refreshed = False
-                        deadline = time.monotonic() + 18
+                        began = time.monotonic()
+                        deadline = began + max(18, args.seconds + 10)
                         while time.monotonic() < deadline:
                             size = int.from_bytes(exact(peer, 4), 'big')
                             assert 0 < size < 16*1024*1024
@@ -109,6 +117,7 @@ def main():
                                 if msg['type'] == 'ping':
                                     peer.sendall(protocol.pong(1, 1))
                                 elif msg['type'] == 'streamConfig':
+                                    assert msg['framesPerSecond'] == args.fps
                                     announced = (msg['width'], msg['height'])
                                     video_seen = refreshed = False
                             else:
@@ -125,7 +134,7 @@ def main():
                                     peer.sendall(protocol.encode_control({'type': 'kf'}))
                                 if connection == 0 and frame_count == 12:
                                     peer.sendall(protocol.encode_control({**hello, 'maxEncodeWide': 320, 'maxEncodeHigh': 200}))
-                                if frame_count >= 26 and idrs >= 2:
+                                if frame_count >= 26 and idrs >= 2 and time.monotonic()-began >= args.seconds:
                                     state = service.current_status()
                                     backend = state.get('capture_backend')
                                     capture_backends.append(backend)
@@ -135,6 +144,7 @@ def main():
                                         assert state.get('display_position') == args.display_position
                                         screens = desktop.monitors()
                                         captured = next(m for m in screens if m.name == state['capture_monitor'])
+                                        assert desktop.refresh_rate(captured.name) >= args.fps
                                         assert [m for m in screens if m.name != captured.name] == original
                                         main = next(m for m in original if m.primary)
                                         assert captured.y == main.y
@@ -146,6 +156,8 @@ def main():
                                             assert captured.x == max(m.x+m.w for m in neighbors)
                                         positions.append([captured.x, captured.y])
                                     counts.append(frame_count)
+                                    measurements.append({key: state.get(key) for key in
+                                                         ('target_fps', 'actual_fps', 'display_refresh_hz', 'timings_ms')})
                                     break
                         else:
                             raise AssertionError('Timed out waiting for decodable video/keyframes')
@@ -171,10 +183,14 @@ def main():
             assert service.active()
             same = start(address)
             assert same['pid'] == facts['pid'], 'duplicate start created a second worker'
-            assert complete.wait(45), 'receiver did not finish'
+            assert complete.wait(max(45, 2*args.seconds+30)), 'receiver did not finish'
             if errors:
                 raise errors[0]
         finally:
+            if errors:
+                print(json.dumps({'failed_status': service.current_status()}, ensure_ascii=False))
+                if storage.LOG.exists():
+                    print(storage.LOG.read_text(encoding='utf-8')[-6000:])
             if args.executable:
                 command('stop')
             else:
@@ -196,6 +212,7 @@ def main():
                           'decoded_sizes': sorted(decoded_sizes), 'layout_unchanged': True,
                           'worker_stopped': True, 'packaged': bool(args.executable),
                           'capture_backends': capture_backends,
+                          'measurements': measurements,
                           'display_position': args.display_position, 'positions': positions,
                           'virtual_monitor_withdrawals': len(withdrawn)}, ensure_ascii=False))
 

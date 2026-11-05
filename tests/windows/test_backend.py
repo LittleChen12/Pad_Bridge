@@ -120,6 +120,46 @@ def test_decode_budget_and_frame_rate_are_respected():
     assert mirror_size(2560, 1600, bound=(1920, 1440)) == (1920, 1200)
 
 
+@pytest.mark.parametrize('panel,decoder,expected', [(120, 120, 120), (60, 120, 60), (120, 90, 90)])
+def test_high_refresh_negotiation_respects_panel_decoder_and_pixel_budget(panel, decoder, expected):
+    hello = {**HELLO, 'displayMaxFrameRate': panel,
+             'videoCaps': [{'codec': 'h264', 'maxFrameRate': decoder,
+                            'maxPixelsPerSecond': 1920*1200*120}]}
+    (width, height), fps = worker.stream_options(hello, MAIN, VideoOptions(fps=120))
+    assert fps == expected
+    assert width*height*fps <= 1920*1200*120
+
+
+def test_high_refresh_without_receiver_advertisement_defaults_to_60():
+    assert worker.stream_options(HELLO, MAIN, VideoOptions(fps=120))[1] == 60
+
+
+def test_forced_120_ignores_both_fps_caps_but_keeps_decoder_size_and_throughput_limits():
+    hello = {**HELLO, 'displayMaxFrameRate': 60,
+             'videoCaps': [{'codec': 'h264', 'maxFrameRate': 60, 'maxWidth': 1920,
+                            'maxHeight': 1200, 'maxPixelsPerSecond': 1920*1200*60}]}
+    (width, height), fps = worker.stream_options(hello, MAIN, VideoOptions(fps=120, force_fps=True))
+    assert fps == 120
+    assert width <= 1920 and height <= 1200
+    assert width*height*fps <= 1920*1200*60
+    assert worker.receiver_fps_limit(hello) == 60
+
+
+def test_120fps_encoder_announces_and_decodes_each_frame():
+    import av
+    encoder = encoding.create_encoder((320, 200), 120, 3000)
+    decoder = av.CodecContext.create('h264', 'r')
+    try:
+        assert encoder.context.framerate == 120
+        for _ in range(6):
+            output = encoder.encode_bgra(bytes(320*200*4), 320, 200)
+            assert len(output) == 1
+            assert len(decoder.decode(av.Packet(output[0][0]))) == 1
+        assert decoder.framerate == 120
+    finally:
+        encoder.close()
+
+
 @pytest.mark.parametrize('value', [float('inf'), float('nan'), 0.1])
 def test_nonsensical_decoder_limits_are_rejected_or_ignored(value):
     hello = {**HELLO, 'videoCaps': [{'codec': 'h264', 'maxWidth': value}]}

@@ -106,13 +106,70 @@ def configuration():
     for w, h in sizes:
         for width, height in ((w, h), (h, w)):
             mode = ET.SubElement(modes, 'resolution')
-            for key, value in (('width', width), ('height', height), ('refresh_rate', 60)):
+            for key, value in (('width', width), ('height', height),
+                               ('refresh_rate', 60), ('refresh_rate', 90), ('refresh_rate', 120)):
                 ET.SubElement(mode, key).text = str(value)
     options = ET.SubElement(root, 'options')
     for key in ('CustomEdid', 'PreventSpoof', 'EdidCeaOverride', 'SDR10bit', 'HDRPlus', 'logging', 'debuglogging'):
         ET.SubElement(options, key).text = 'false'
     ET.SubElement(options, 'HardwareCursor').text = 'true'
     return ET.tostring(root, encoding='utf-8', xml_declaration=True)
+
+
+def high_refresh_ready():
+    try:
+        root = ET.parse(vd.INSTALL_DIR / 'vdd_settings.xml').getroot()
+        modes = refresh_modes(root)
+        return bool(modes) and all({'60', '90', '120'} <= rates for _, rates in modes.values())
+    except (OSError, ET.ParseError):
+        return False
+
+
+def refresh_modes(root):
+    global_rates = {item.text for item in root.findall('global/g_refresh_rate')}
+    modes = {}
+    for mode in root.findall('resolutions/resolution'):
+        key = (mode.findtext('width'), mode.findtext('height'))
+        _, rates = modes.setdefault(key, (mode, set(global_rates)))
+        rates.update(item.text for item in mode.findall('refresh_rate'))
+    return modes
+
+
+def upgrade_refresh_modes():
+    """Add rates to our existing configuration without replacing user options."""
+    if high_refresh_ready():
+        return
+    if not device_control.owned_device():
+        raise RuntimeError('无法确认扩展组件归属，已取消更新。')
+    if not ct.windll.shell32.IsUserAnAdmin():
+        raise RuntimeError('更新扩展组件需要一次 Windows 管理员确认。')
+    path = vd.INSTALL_DIR / 'vdd_settings.xml'
+    before = path.read_bytes()
+    root = ET.fromstring(before)
+    modes = refresh_modes(root)
+    if not modes:
+        raise RuntimeError('扩展组件没有分辨率配置，已取消更新。')
+    # The driver appends global rates without deduplicating per-resolution
+    # rates. Add each missing timing once, including custom/duplicate sizes.
+    for mode, existing in modes.values():
+        for rate in ('60', '90', '120'):
+            if rate not in existing:
+                ET.SubElement(mode, 'refresh_rate').text = rate
+    # Do not restart a screen being used outside PadBridge, even if we own its
+    # driver. The new modes load on its next explicit disable/enable instead.
+    current = vd.display_config.current(optional=True)
+    if current and current[1]:
+        raise RuntimeError('更新刷新率前请先断开虚拟副屏，再重试安装扩展组件。')
+    backup = path.with_suffix('.pre-120hz.xml')
+    if not backup.exists():
+        backup.write_bytes(before)
+    device_control.set_enabled(False)
+    temporary = path.with_suffix('.new.xml')
+    try:
+        temporary.write_bytes(ET.tostring(root, encoding='utf-8', xml_declaration=True))
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def install(interactive=False, archive=None):
@@ -123,6 +180,7 @@ def install(interactive=False, archive=None):
         if not device_control.ready():
             device_control.configure()
         vd.recover()
+        upgrade_refresh_modes()
         vd.park_idle()
         return vd.INSTALL_DIR
     if not ct.windll.shell32.IsUserAnAdmin():

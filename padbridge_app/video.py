@@ -25,6 +25,7 @@ class VideoOptions:
     resolution: str = 'native'
     fps: int = 60
     bitrate_mbps: int = 0  # 0 selects the tested transport default.
+    force_fps: bool = False
 
     def __post_init__(self):
         if self.resolution != 'native':
@@ -34,8 +35,10 @@ class VideoOptions:
             w, h = map(int, match.groups())
             if not (320 <= h <= w <= 3840 and w % 8 == 0 and h % 2 == 0):
                 raise ValueError('分辨率按横屏填写：320 ≤ 高 ≤ 宽 ≤ 3840；宽须为 8 的倍数，高须为偶数。')
-        if type(self.fps) is not int or not 15 <= self.fps <= 60:
-            raise ValueError('目标帧率须为 15～60 的整数。')
+        if type(self.fps) is not int or not 15 <= self.fps <= 120:
+            raise ValueError('目标帧率须为 15～120 的整数。')
+        if type(self.force_fps) is not bool:
+            raise ValueError('强制目标帧率须为布尔值。')
         if type(self.bitrate_mbps) is not int or not 0 <= self.bitrate_mbps <= 50:
             raise ValueError('码率须为 1～50 Mbps 的整数，或 0（自动）。')
 
@@ -55,4 +58,4 @@ class VideoOptions:
             return cls()
         if not isinstance(data, dict):
             raise ValueError('画面参数格式无效。')
-        return cls(**{key: data[key] for key in ('resolution', 'fps', 'bitrate_mbps') if key in data})
+        return cls(**{key: data[key] for key in ('resolution', 'fps', 'bitrate_mbps', 'force_fps') if key in data})

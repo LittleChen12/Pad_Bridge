@@ -96,7 +96,7 @@ def ready():
             storage.read_json(DIRECTORY / 'device.json').get('instance_id') == owner.get('instance_id'))
 
 
-def powershell(script, data):
+def powershell(script, data, timeout=45):
     script = '[Console]::OutputEncoding = [Console]::InputEncoding = New-Object Text.UTF8Encoding($false)\n' + script
     return subprocess.run([str(POWERSHELL), '-NoProfile', '-NonInteractive', '-Command', script],
                           input=json.dumps(data), text=True, encoding='utf-8', errors='replace', capture_output=True,
@@ -104,7 +104,7 @@ def powershell(script, data):
                           # incompatible Security module. This helper uses only
                           # the inbox Windows PowerShell 5.1 modules.
                           env={**os.environ, 'PSModulePath': str(POWERSHELL.parent / 'Modules')},
-                          creationflags=subprocess.CREATE_NO_WINDOW, timeout=45, check=True)
+                          creationflags=subprocess.CREATE_NO_WINDOW, timeout=timeout, check=True)
 
 
 def configure():

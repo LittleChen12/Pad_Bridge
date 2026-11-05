@@ -7,7 +7,6 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import sys
 import time
 import traceback
 
@@ -43,7 +42,7 @@ def probe():
     apple = 'ready' if usb_ready() else ('repair' if apple_service_exists() else 'missing')
     device = device_control.owned_device()
     if device:
-        display = 'ready' if device_control.ready() else 'repair'
+        display = 'ready' if device_control.ready() and driver_setup.high_refresh_ready() else 'repair'
     elif device_control.devices():
         # A different application's VirtualDrivers instance must not be adopted.
         display = 'conflict'
@@ -125,7 +124,7 @@ def provision(apple_package=None, interactive=False, log_dir=None):
             state['restart'] = '1'
             state['display'] = 'restart'
         else:
-            if not device_control.owned_device() or not device_control.ready():
+            if not device_control.owned_device() or not device_control.ready() or not driver_setup.high_refresh_ready():
                 raise RuntimeError('扩展组件未通过安装后检查，请重新运行安装器。')
             state['display'] = 'ready'
     return state
@@ -136,17 +135,8 @@ def run(result_path, check=False, apple_package=None, interactive=False, log_dir
     state = {'apple': 'unknown', 'display': 'unknown', 'restart': '0', 'error': ''}
     code = 1
     try:
-        if getattr(sys, 'frozen', False):
-            # The installer helper is a separate, short-lived process. PyInstaller
-            # otherwise passes its private DLL search directory to PowerShell/MSI.
-            # Reset it here, without changing the running UI or streaming worker.
-            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
-            kernel.SetDllDirectoryW.argtypes = [ctypes.c_wchar_p]
-            if not kernel.SetDllDirectoryW(None):
-                raise ctypes.WinError(ctypes.get_last_error())
-            bundle = Path(sys._MEIPASS).resolve()
-            os.environ['PATH'] = os.pathsep.join(part for part in os.environ.get('PATH', '').split(os.pathsep)
-                                               if not Path(part).resolve().is_relative_to(bundle))
+        from .installation import prepare_system_helper
+        prepare_system_helper()
         if check and apple_package:
             verify_apple(apple_package)
         state = probe() if check else provision(apple_package, interactive, log_dir)

@@ -127,7 +127,7 @@ class VideoOptionsTests(unittest.TestCase):
     def test_invalid_inputs_are_rejected_before_display_is_touched(self):
         for options in ({'resolution':'1921x1080'}, {'resolution':'640x481'},
                         {'resolution':'1200x1600'}, {'resolution':'9999x8888'},
-                        {'resolution':'1920x1080;exit'}, {'fps':0}, {'fps':61},
+                        {'resolution':'1920x1080;exit'}, {'fps':0}, {'fps':121},
                         {'fps':True}, {'bitrate_mbps':-1}, {'bitrate_mbps':51}):
             with self.subTest(options=options), self.assertRaises(ValueError):
                 VideoOptions(**options)

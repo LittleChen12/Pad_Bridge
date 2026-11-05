@@ -73,7 +73,7 @@ def test_auto_extension_uses_selected_side(monkeypatch, position, expected_x):
     screens = [MAIN]
     monkeypatch.setattr(desktop, 'monitors', lambda: screens)
     mode = vd.DevMode(size=ctypes.sizeof(vd.DevMode), width=2224, height=1668, bits=32, frequency=60)
-    monkeypatch.setattr(vd, 'modes', lambda _: {(2224, 1668): mode})
+    monkeypatch.setattr(vd, 'modes', lambda _, refresh=60: {(2224, 1668): mode})
     def apply(adapter, selected):
         assert selected.position.x == expected_x and selected.position.y == 0
         assert vd.storage.read_json(vd.LEASE)['key'] == VDD.key
@@ -101,7 +101,7 @@ def test_resize_keeps_left_screen_attached_but_preserves_manual_placement(monkey
     monkeypatch.setattr(vd, 'owned_adapter', lambda: VDD)
     monkeypatch.setattr(desktop, 'monitors', lambda: screens)
     mode = vd.DevMode(width=1668, height=2224, bits=32, frequency=60)
-    monkeypatch.setattr(vd, 'modes', lambda _: {(1668, 2224): mode})
+    monkeypatch.setattr(vd, 'modes', lambda _, refresh=60: {(1668, 2224): mode})
     def apply(adapter, selected):
         screens[1] = desktop.Monitor('virtual', selected.position.x, selected.position.y, 1668, 2224)
     monkeypatch.setattr(vd, 'apply_mode', apply)
@@ -166,7 +166,7 @@ def test_newly_enabled_screen_uses_selected_side_even_if_windows_restores_old_po
     monkeypatch.setattr(vd, 'owned_adapter', lambda: VDD if current[0] else None)
     monkeypatch.setattr(desktop, 'monitors', lambda: [MAIN, monitor[0]] if current[0] else [MAIN])
     mode = vd.DevMode(width=2224, height=1668, bits=32, frequency=60)
-    monkeypatch.setattr(vd, 'modes', lambda _: {(2224, 1668): mode})
+    monkeypatch.setattr(vd, 'modes', lambda _, refresh=60: {(2224, 1668): mode})
     def apply(adapter, selected):
         monitor[0] = replace(monitor[0], x=selected.position.x, y=selected.position.y)
     monkeypatch.setattr(vd, 'apply_mode', Mock(side_effect=apply))

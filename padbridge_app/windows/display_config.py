@@ -123,7 +123,7 @@ def current(optional=False):
     return source_name(path), bool(path.flags & 1), shared, target_name(path)
 
 
-def plan(paths, modes, selected, width, height, x, y):
+def plan(paths, modes, selected, width, height, x, y, refresh=60):
     """Keep every other active path and its exact mode records."""
     result = [p for p in paths if p.flags & 1 and target_key(p) != target_key(selected)]
     modes = list(modes)
@@ -145,7 +145,7 @@ def plan(paths, modes, selected, width, height, x, y):
         modes.append(mode)
         target.target.mode = INVALID
         target.target.rotation = 1
-        target.target.refresh = Rational(60, 1)
+        target.target.refresh = Rational(refresh, 1)
         target.target.scanline = 1
         target.flags = 1
         result.append(target)
@@ -154,9 +154,9 @@ def plan(paths, modes, selected, width, height, x, y):
     return result, modes
 
 
-def apply(width, height, x=0, y=0):
+def apply(width, height, x=0, y=0, refresh=60):
     paths, modes = query()
-    paths, modes = plan(paths, modes, virtual_path(paths), width, height, x, y)
+    paths, modes = plan(paths, modes, virtual_path(paths), width, height, x, y, refresh)
     pp, mm = (Path*len(paths))(*paths), (Mode*len(modes))(*modes)
     # Existing physical source and target modes remain fully specified. Windows
     # selects only the missing target timing for the virtual output.

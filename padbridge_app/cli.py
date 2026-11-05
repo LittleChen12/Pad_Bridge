@@ -27,12 +27,14 @@ def main():
         from . import service
     parser = argparse.ArgumentParser(description='PadBridge · iPad USB / Wi-Fi 扩展与镜像')
     parser.add_argument('command', nargs='?', default='ui',
-                        choices=('ui', 'start', 'stop', 'status', 'doctor', 'discover', 'authorize', 'run', 'release', 'encoder-test', 'monitors', 'install-display-driver', 'setup-components'))
+                        choices=('ui', 'start', 'stop', 'status', 'doctor', 'discover', 'authorize', 'run', 'release', 'encoder-test', 'monitors', 'install-display-driver', 'setup-components', 'repair-preferences'))
     parser.add_argument('--transport', choices=('usb', 'wifi'), help='USB 数据线或局域网 Wi-Fi')
     parser.add_argument('--address', help='iPad 局域网 IP[:端口]；Wi-Fi 模式可留空自动搜索')
     parser.add_argument('--display-mode', choices=('extend', 'mirror'), help='扩展屏幕或镜像主屏')
     parser.add_argument('--resolution', help='native 或横屏宽x高；镜像时作为等比缩放上限')
-    parser.add_argument('--fps', type=int, help='目标帧率，15～60')
+    parser.add_argument('--fps', type=int, help='目标帧率，15～120；受接收端能力限制')
+    parser.add_argument('--force-fps', action=argparse.BooleanOptionalAction, default=None,
+                        help='Windows：强制目标帧率，忽略接收端声明的帧率上限')
     parser.add_argument('--bitrate', type=int, help='目标码率 Mbps，1～50；0 为 USB 24 / Wi-Fi 10')
     parser.add_argument('--monitor', help='Windows 扩展模式的显示器名称（monitors 命令查询）')
     parser.add_argument('--display-position', choices=('left', 'right'),
@@ -44,10 +46,25 @@ def main():
     parser.add_argument('--result', help=argparse.SUPPRESS)
     parser.add_argument('--apple-package', help=argparse.SUPPRESS)
     parser.add_argument('--setup-log-dir', help=argparse.SUPPRESS)
+    parser.add_argument('--caller-sid', help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.force_fps and not WINDOWS:
+        parser.error('--force-fps 目前仅支持 Windows。')
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+    if WINDOWS and args.command in ('repair-preferences', 'install-display-driver'):
+        from .windows.installation import prepare_system_helper
+        from .windows import storage
+        prepare_system_helper()
+        storage.LOG.parent.mkdir(parents=True, exist_ok=True)
+        logging.getLogger().addHandler(logging.FileHandler(storage.LOG.with_name('maintenance.log'), encoding='utf-8'))
     if args.command == 'ui':
         return gui()
+    if args.command == 'repair-preferences':
+        if not WINDOWS or not args.caller_sid:
+            raise RuntimeError('repair-preferences 需要 Windows 和调用用户身份。')
+        from .windows.user_config import repair
+        repair(args.caller_sid)
+        return 0
     if args.command == 'setup-components':
         if not WINDOWS or not args.result:
             raise RuntimeError('setup-components 需要 Windows 和 --result 文件路径。')
@@ -56,8 +73,12 @@ def main():
                    interactive=args.interactive, log_dir=args.setup_log_dir)
     video = None
     if args.command in ('start', 'run'):
+        if WINDOWS and args.command == 'start':
+            from .windows.user_config import prepare
+            prepare()
         data = preferences()['video_options'] if args.command == 'start' else VideoOptions().to_dict()
-        for key, value in (('resolution', args.resolution), ('fps', args.fps), ('bitrate_mbps', args.bitrate)):
+        for key, value in (('resolution', args.resolution), ('fps', args.fps),
+                           ('bitrate_mbps', args.bitrate), ('force_fps', args.force_fps)):
             if value is not None:
                 data[key] = value
         video = VideoOptions.from_dict(data)
