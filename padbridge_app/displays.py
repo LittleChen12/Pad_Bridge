@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import re
 import subprocess
+import time
 from odx11 import display
 from .paths import MARKER, RUNTIME
 from .video import mirror_size
@@ -98,6 +99,26 @@ class HybridDisplay(display.VirtualDisplay):
             record_ownership({'connector': self.port.name, 'output': self.output})
         (self.port / 'status').write_text(value)
 
+    def _apply_mode(self, args, size, first):
+        self._xrandr(*args)
+        if first and self.cfg.settle_timeout_s:
+            # GNOME can finish a pending hotplug configuration after our modeset.
+            # Verify the requested size before starting capture, with one recovery
+            # confined to startup so later desktop changes are still respected.
+            deadline = time.monotonic() + self.cfg.settle_timeout_s
+
+            def size_changed():
+                geom = self.geometry()
+                return geom is None or (geom.w, geom.h) != size
+
+            quiet = min(0.5, self.cfg.settle_timeout_s)
+            if (self._wait_until(size_changed, quiet) and self._connected()
+                    and not (self.port / 'edid').read_bytes()):
+                log.info('热插拔配置覆盖了副屏模式，重新设置 %dx%d', *size)
+                self._xrandr(*args)
+                self._wait_until(size_changed, max(0, min(quiet, deadline - time.monotonic())))
+        return self.geometry()
+
     def attach(self, panel_w, panel_h, device_cfg, limits=None):
         mw, mh, rotation = panel_mode(panel_w, panel_h, self.cfg.divisor,
                                      self.resolution or device_cfg.mode)
@@ -106,14 +127,17 @@ class HybridDisplay(display.VirtualDisplay):
         ow, oh = (mw, mh) if rotation == 'normal' else (mh, mw)
         old_mode = self.mode_name
         name = self._ensure_mode(mw, mh)
-        first = not self.forced
-        if first:
-            self.forced = True
+        first = not self.attached
+        if not self.forced:
             self._force('on')
+            self.forced = True
+        if first:
+            # PRIME drivers may leave the cached connector state disconnected
+            # until Xorg probes it, even after sysfs accepted the force request.
+            if not self._connected():
+                self._randr.get_screen_resources(self.root)
             if not self._wait_until(self._connected, self.cfg.connect_timeout_s):
                 raise RuntimeError(f'{self.output} 没有响应虚拟显示请求。')
-            # Let GNOME finish its hotplug layout before we apply the final mode.
-            # Without this it can overwrite our mode with 1024×768 moments later.
             self._wait_until(lambda: self.geometry() is not None, self.cfg.settle_timeout_s)
         main = self.main_geometry()
         g = self.geometry()
@@ -140,9 +164,9 @@ class HybridDisplay(display.VirtualDisplay):
                     positions += ['--output', output, '--pos', f'{position[0]}x{position[1]}']
         else:
             x, y = g.x, g.y
-        self._xrandr('--output', self.output, '--mode', name, '--rotate', rotation,
-                     '--pos', f'{x}x{y}', *positions)
-        g = self.geometry()
+        args = ('--output', self.output, '--mode', name, '--rotate', rotation,
+                '--pos', f'{x}x{y}', *positions)
+        g = self._apply_mode(args, (ow, oh), first)
         if g is None or (g.w, g.h) != (ow, oh):
             raise RuntimeError(f'副屏尺寸设置失败：需要 {ow}×{oh}，实际 {g}')
         if old_mode and old_mode != name:
