@@ -2,9 +2,12 @@
 """Regression checks for PRIME mapping and the privileged connector boundary."""
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest.mock import Mock, patch
 
-from padbridge_app.displays import output_for_id, panel_mode
+from odx11.display import Geometry
+from padbridge_app.displays import HybridDisplay, output_for_id, panel_mode
 from enable_display import validate_connector
 
 
@@ -57,6 +60,69 @@ class ConnectorTests(unittest.TestCase):
             driver.symlink_to(root / 'drivers/nvidia')
             with self.assertRaises(ValueError):
                 validate_connector(port.name, root)
+
+
+class HotplugTests(unittest.TestCase):
+    def setUp(self):
+        self.screen = HybridDisplay.__new__(HybridDisplay)
+        self.screen.cfg = SimpleNamespace(divisor=1.0, connect_timeout_s=5.0, settle_timeout_s=2.0)
+        self.screen.output = 'HDMI-A-1-0'
+        self.screen._xrandr = Mock()
+        self.screen._connected = Mock(return_value=True)
+        self.target = Geometry(2560, 0, 2360, 1640)
+        self.fallback = Geometry(2560, 0, 640, 480)
+        self.args = ('--output', self.screen.output, '--mode', 'odx11_2360x1640')
+
+    def test_timeout_retry_still_waits_for_connector_and_initial_layout(self):
+        screen = self.screen
+        screen.port = Path('card2-HDMI-A-1')
+        screen.resolution, screen.position = None, 'right'
+        screen.mode_name, screen.forced, screen.attached = None, False, False
+        screen.layout_record, screen._automatic_geometry = {}, None
+        screen._randr, screen.root = Mock(), object()
+        screen._force = Mock()
+        screen._ensure_mode = Mock(return_value='odx11_2360x1640')
+        screen._connected.return_value = False
+        screen._wait_until = Mock(side_effect=[False, True, True])
+        screen.main_geometry = Mock(return_value=Geometry(0, 0, 2560, 1440))
+        screen.geometry = Mock(return_value=self.fallback)
+        screen._outputs = Mock(return_value=[])
+        screen._apply_mode = Mock(return_value=self.target)
+        device = SimpleNamespace(mode=None)
+
+        with patch('padbridge_app.displays.record_ownership'):
+            with self.assertRaisesRegex(RuntimeError, 'HDMI-A-1-0'):
+                screen.attach(2360, 1640, device)
+            self.assertTrue(screen.forced)
+            self.assertFalse(screen.attached)
+            self.assertEqual(screen.attach(2360, 1640, device), self.target)
+
+        screen._force.assert_called_once_with('on')
+        self.assertEqual(screen._randr.get_screen_resources.call_count, 2)
+        self.assertEqual(screen._wait_until.call_args_list[1].args, (screen._connected, 5.0))
+        self.assertEqual(screen._wait_until.call_args_list[2].args[1], 2.0)
+        self.assertEqual(screen._apply_mode.call_args.args[1:], ((2360, 1640), True))
+
+    def test_startup_reapplies_mode_once_if_hotplug_overwrites_it(self):
+        screen = self.screen
+        with tempfile.TemporaryDirectory() as directory:
+            screen.port = Path(directory)
+            (screen.port / 'edid').write_bytes(b'')
+            screen._wait_until = Mock(side_effect=lambda predicate, timeout: predicate())
+            screen.geometry = Mock(side_effect=[self.fallback, self.target, self.target])
+
+            self.assertEqual(screen._apply_mode(self.args, (2360, 1640), True), self.target)
+            self.assertEqual(screen._xrandr.call_count, 2)
+            self.assertEqual(screen._wait_until.call_count, 2)
+
+    def test_active_resize_does_not_reapply_mode_when_geometry_changes(self):
+        screen = self.screen
+        screen._wait_until = Mock()
+        screen.geometry = Mock(return_value=self.fallback)
+
+        self.assertEqual(screen._apply_mode(self.args, (2360, 1640), False), self.fallback)
+        screen._xrandr.assert_called_once_with(*self.args)
+        screen._wait_until.assert_not_called()
 
 
 if __name__ == '__main__':
