@@ -6,7 +6,7 @@ import subprocess
 from odx11 import state, usbmux, protocol
 from . import displays, network
 from .paths import ROOT, LAUNCHER, UNIT, CONNECTION
-from .preferences import preferences, save_preferences
+from .preferences import DISPLAY_POSITIONS, preferences, save_preferences
 from .video import VideoOptions
 
 
@@ -56,8 +56,8 @@ def start(transport=None, address=None, display_mode=None, video=None, display_p
     display_mode = display_mode or previous['display_mode']
     video = video or VideoOptions.from_dict(previous['video_options'])
     display_position = display_position or previous['display_position']
-    if display_position not in ('left', 'right'):
-        raise ValueError('副屏位置必须为左侧或右侧。')
+    if display_position not in DISPLAY_POSITIONS:
+        raise ValueError('副屏位置必须为左侧、右侧或下方。')
     if transport not in ('usb', 'wifi'):
         raise ValueError('连接方式必须为 USB 或 Wi-Fi。')
     if display_mode not in ('extend', 'mirror'):

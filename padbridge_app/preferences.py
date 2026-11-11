@@ -8,6 +8,7 @@ from .video import VideoOptions
 from .paths import CONFIG_HOME, WINDOWS
 PREFERENCES = CONFIG_HOME / 'connection.json'
 DEFAULT_MODE = 'mirror' if WINDOWS else 'extend'
+DISPLAY_POSITIONS = ('left', 'right') if WINDOWS else ('left', 'right', 'below')
 
 
 def preferences():
@@ -21,7 +22,7 @@ def preferences():
         if mode not in ('extend', 'mirror'):
             mode = DEFAULT_MODE
         position = data.get('display_position', 'right')
-        if position not in ('left', 'right'):
+        if position not in DISPLAY_POSITIONS:
             position = 'right'
         try:
             video = VideoOptions.from_dict(data.get('video_options'))

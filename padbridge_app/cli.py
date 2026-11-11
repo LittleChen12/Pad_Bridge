@@ -7,7 +7,7 @@ import os
 import sys
 from . import network
 from .paths import WINDOWS
-from .preferences import preferences
+from .preferences import DISPLAY_POSITIONS, preferences
 from .video import VideoOptions
 log = logging.getLogger('padbridge')
 
@@ -39,8 +39,8 @@ def main():
                         help=argparse.SUPPRESS)
     parser.add_argument('--bitrate', type=int, help='目标码率 Mbps，1～50；0 为 USB 24 / Wi-Fi 10')
     parser.add_argument('--monitor', help='Windows 扩展模式的显示器名称（monitors 命令查询）')
-    parser.add_argument('--display-position', choices=('left', 'right'),
-                        help='新连接的副屏默认放在电脑桌面左侧或右侧')
+    parser.add_argument('--display-position', choices=DISPLAY_POSITIONS,
+                        help='新连接的副屏默认位置')
     parser.add_argument('--worker-token', help=argparse.SUPPRESS)
     parser.add_argument('--receiver-id', default='', help=argparse.SUPPRESS)
     parser.add_argument('--interactive', action='store_true', help='安装显示驱动时显示 Windows 发布者确认窗口')

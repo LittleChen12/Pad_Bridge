@@ -66,7 +66,7 @@ class ConnectionPanel:
         self.controls.pack_start(self.mode_hint, False, False, 0)
         self.position_row = Gtk.Box(spacing=25)
         self.position_row.pack_start(label('副屏位置', 'field-label'), False, False, 0)
-        self.position = Choice((('left', '左侧'), ('right', '右侧')),
+        self.position = Choice((('left', '左侧'), ('right', '右侧'), ('below', '下方')),
                                saved.get('display_position', 'right'), changed)
         self.position_row.pack_start(self.position, True, True, 0)
         self.position_row.set_no_show_all(True)

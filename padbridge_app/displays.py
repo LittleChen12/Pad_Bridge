@@ -7,6 +7,7 @@ import re
 import subprocess
 from odx11 import display
 from .paths import MARKER, RUNTIME
+from .preferences import DISPLAY_POSITIONS
 from .video import mirror_size
 from .display_layout import initial_layout, restore_positions
 log = logging.getLogger('padbridge.display')
@@ -78,8 +79,8 @@ def panel_mode(panel_w, panel_h, divisor, override=None):
 
 class HybridDisplay(display.VirtualDisplay):
     def __init__(self, cfg, connector, resolution=None, position='right'):
-        if position not in ('left', 'right'):
-            raise ValueError('副屏位置必须为左侧或右侧。')
+        if position not in DISPLAY_POSITIONS:
+            raise ValueError('副屏位置必须为左侧、右侧或下方。')
         super().__init__(cfg)
         self.port = connector
         self.connector = connector.name.split('-', 1)[1]
@@ -123,11 +124,11 @@ class HybridDisplay(display.VirtualDisplay):
                      enabled == self.layout_record.get('layout_applied'))
         # GNOME may auto-enable a hotplugged output at 0,0; explicitly extend it.
         positions = []
-        if first or g is None or (automatic and self.position == 'left'):
+        if first or g is None or (automatic and self.position in ('left', 'below')):
             before, primary = enabled, main
             if automatic:
-                # A rotation changes the width of a left screen. Rebase from our
-                # original arrangement; do not accumulate origin translations.
+                # A rotation changes the width used to place a left or lower
+                # screen. Rebase from the original arrangement.
                 before = self.layout_record['layout_before']
                 primary = next(before[name] for name, current in enabled.items()
                                if current == list(main))

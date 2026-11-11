@@ -20,6 +20,18 @@ class LayoutTests(unittest.TestCase):
         for name, before in self.outputs.items():
             self.assertEqual(moved[name], [before[0]+2224, *before[1:]])
 
+    def test_below_centers_on_primary_beneath_the_lowest_screen(self):
+        self.outputs['right'] = [4480, 0, 1280, 2160]
+        position, moved = initial_layout(self.outputs, self.outputs['primary'], 2224, 'below')
+        self.assertEqual(position, (2088, 2160))
+        self.assertEqual(moved, self.outputs)
+
+    def test_below_translates_origin_when_ipad_is_wider_than_primary(self):
+        outputs = {'primary': [0, 0, 1920, 1080]}
+        position, moved = initial_layout(outputs, outputs['primary'], 2360, 'below')
+        self.assertEqual(position, (0, 1080))
+        self.assertEqual(moved, {'primary': [220, 0, 1920, 1080]})
+
     def test_cleanup_only_undoes_our_exact_translation(self):
         _, moved = initial_layout(self.outputs, self.outputs['primary'], 2224, 'left')
         record = {'layout_before':self.outputs, 'layout_applied':moved}
