@@ -10,6 +10,7 @@ from . import network
 from .displays import release, choose_connector, HybridDisplay, MirrorDisplay
 from .encoding import NativePipeline, select_encoder
 from .paths import RUNTIME, CONFIG, CONNECTION
+from .preferences import DISPLAY_POSITIONS
 from .video import VideoOptions
 from .stream_sender import connection_factory
 log = logging.getLogger('padbridge.worker')
@@ -21,8 +22,8 @@ def run(transport='usb', address='', display_mode='extend', video=None, display_
     if display_mode not in ('extend', 'mirror'):
         raise ValueError('显示模式必须为扩展或镜像。')
     video = video or VideoOptions()
-    if display_position not in ('left', 'right'):
-        raise ValueError('副屏位置必须为左侧或右侧。')
+    if display_position not in DISPLAY_POSITIONS:
+        raise ValueError('副屏位置必须为左侧、右侧或下方。')
     tcp = network.parse_endpoint(address) if transport == 'wifi' else None
     if os.environ.get('XDG_SESSION_TYPE', 'x11') != 'x11':
         raise RuntimeError('当前版本需要 Ubuntu on Xorg 会话。')

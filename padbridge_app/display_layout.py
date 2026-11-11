@@ -7,20 +7,28 @@ import subprocess
 def initial_layout(outputs, primary, width, side):
     """Return virtual (x,y), other positions. X11 cannot use negative origins.
 
-    Geometry values are (x,y,w,h). A left extension translates the desktop as
-    one unit; existing output modes and relative arrangements stay unchanged.
+    Geometry values are (x,y,w,h). If needed, translate the entire layout to
+    fit the framebuffer origin while preserving physical screen modes and offsets.
     """
-    if side not in ('left', 'right'):
-        raise ValueError('副屏位置必须为左侧或右侧。')
-    x = (min((g[0] for g in outputs.values()), default=primary[0]) - width
-         if side == 'left' else max((g[0]+g[2] for g in outputs.values()), default=primary[0]+primary[2]))
+    primary_x, primary_y, primary_width, primary_height = primary
+    if side == 'below':
+        x = primary_x + (primary_width - width) // 2
+        y = max((g[1] + g[3] for g in outputs.values()), default=primary_y + primary_height)
+    elif side == 'left':
+        x = min((g[0] for g in outputs.values()), default=primary_x) - width
+        y = primary_y
+    elif side == 'right':
+        x = max((g[0] + g[2] for g in outputs.values()), default=primary_x + primary_width)
+        y = primary_y
+    else:
+        raise ValueError('副屏位置必须为左侧、右侧或下方。')
     # xrandr normalizes the whole framebuffer even when every coordinate is
     # positive. Account for that explicitly, including a hotplug-restored layout
     # or a narrower portrait screen, so our ownership record matches reality.
     dx = -min([x, *(g[0] for g in outputs.values())])
-    dy = -min([primary[1], *(g[1] for g in outputs.values())])
+    dy = -min([y, *(g[1] for g in outputs.values())])
     moved = {name: [g[0]+dx, g[1]+dy, *g[2:]] for name, g in outputs.items()}
-    return (x+dx, primary[1]+dy), moved
+    return (x+dx, y+dy), moved
 
 
 def read_layout():
